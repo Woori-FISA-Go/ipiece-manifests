@@ -17,7 +17,7 @@ spec:
       containers:
         - name: ipiece-frontend
           # 🔥 이 라인은 GitHub Actions에서 sed로 자동 치환됨
-          image: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-frontend:latest
+          image: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-frontend:d26ad27639c3e9942c31e99b3c95331ed09dc19d
           ports:
             - containerPort: 3000
           env:
