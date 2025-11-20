@@ -1,0 +1,32 @@
+﻿apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ipiece-frontend
+  labels:
+    app: ipiece-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ipiece-frontend
+  template:
+    metadata:
+      labels:
+        app: ipiece-frontend
+    spec:
+      containers:
+        - name: ipiece-frontend
+          # 🔥 이 라인은 GitHub Actions에서 sed로 자동 치환됨
+          image: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-frontend:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: "production"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
