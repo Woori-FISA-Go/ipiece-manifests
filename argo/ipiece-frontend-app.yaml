@@ -1,4 +1,4 @@
-﻿apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: ipiece-frontend
@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/Woori-FISA-Go/ipiece-manifests.git
-    targetRevision: main
+    targetRevision: develop
     path: frontend
   destination:
     server: https://kubernetes.default.svc
