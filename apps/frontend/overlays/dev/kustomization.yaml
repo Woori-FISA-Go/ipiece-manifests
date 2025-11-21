@@ -1,13 +1,12 @@
-﻿apiVersion: kustomize.config.k8s.io/v1beta1
+apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
   - ../../base
 
-# CI/CD 파이프라인에서 'kustomize edit set image' 명령어로 수정할 부분
 images:
   - name: ipiece-frontend
-    newName: ipiece-frontend
+    newName: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-frontend
     newTag: latest
 
 patches:
