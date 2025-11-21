@@ -2,7 +2,6 @@
 kind: Ingress
 metadata:
   name: ipiece-frontend-ingress
-  namespace: ipiece-frontend
   annotations:
     # ⚠️ kubernetes.io/ingress.class annotation 제거 (아래 spec 필드로 대체)
     
