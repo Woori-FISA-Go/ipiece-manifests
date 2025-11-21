@@ -1,21 +1,20 @@
 ﻿apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: ipiece-frontend
+  name: ipiece-frontend-dev
   namespace: argocd
 spec:
   project: default
   source:
-    repoURL: https://github.com/Woori-FISA-Go/ipiece-manifests.git
-    targetRevision: develop
+    repoURL: 'https://github.com/Woori-FISA-Go/ipiece-manifests.git'
     path: apps/frontend/overlays/dev
+    targetRevision: develop
   destination:
-    server: https://kubernetes.default.svc
-    namespace: ipiece-frontend
+    server: 'https://kubernetes.default.svc'
+    namespace: ipiece-frontend-dev
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-
