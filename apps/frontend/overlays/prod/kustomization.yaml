@@ -1,12 +1,13 @@
-﻿apiVersion: kustomize.config.k8s.io/v1beta1
+apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+
 resources:
   - ../../base
 
 images:
-  - name: ipiece-frontend       # Base의 deployment.yaml에 있는 이미지 이름
-    newName: ipiece-frontend    # (초기값)
-    newTag: latest              # (초기값)
+  - name: ipiece-frontend
+    newName: ipiece-frontend
+    newTag: latest
 
 patches:
   - target:
