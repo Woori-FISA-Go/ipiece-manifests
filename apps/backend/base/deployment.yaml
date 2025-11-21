@@ -1,0 +1,18 @@
+﻿apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ipiece-backend
+spec:
+  selector:
+    matchLabels:
+      app: ipiece-backend
+  template:
+    metadata:
+      labels:
+        app: ipiece-backend
+    spec:
+      containers:
+        - name: ipiece-backend
+          image: ipiece-backend:latest
+          ports:
+            - containerPort: 8080

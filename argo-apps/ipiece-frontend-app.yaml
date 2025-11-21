@@ -1,4 +1,4 @@
-apiVersion: argoproj.io/v1alpha1
+﻿apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: ipiece-frontend
@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/Woori-FISA-Go/ipiece-manifests.git
     targetRevision: develop
-    path: frontend
+    path: apps/frontend/overlays/dev
   destination:
     server: https://kubernetes.default.svc
     namespace: ipiece-frontend
@@ -18,3 +18,4 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+
