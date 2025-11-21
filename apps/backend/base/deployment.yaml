@@ -1,18 +1,51 @@
 ﻿apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ipiece-backend
+  name: ipiece-server
+  labels:
+    app: ipiece-server
 spec:
+  replicas: 2
   selector:
     matchLabels:
-      app: ipiece-backend
+      app: ipiece-server
   template:
     metadata:
       labels:
-        app: ipiece-backend
+        app: ipiece-server
     spec:
+      imagePullSecrets:              # 추가!
+      - name: ecr-secret
       containers:
-        - name: ipiece-backend
-          image: ipiece-backend:latest
-          ports:
-            - containerPort: 8080
+      - name: ipiece-server
+        image: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-server:latest
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "prod"
+        envFrom:
+        - secretRef:
+            name: ipiece-secrets
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          failureThreshold: 3
