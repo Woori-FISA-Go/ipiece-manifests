@@ -1,10 +1,12 @@
-﻿apiVersion: apps/v1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ipiece-frontend
   labels:
     app: ipiece-frontend
 spec:
+  # 기본값은 1로 두고, overlays/prod에서 2로 덮어쓰는 게 정석이지만
+  # 현재 설정상 2로 두셔도 overlays가 덮어쓰므로 상관없습니다.
   replicas: 2
   selector:
     matchLabels:
@@ -16,8 +18,9 @@ spec:
     spec:
       containers:
         - name: ipiece-frontend
-          # 🔥 이 라인은 GitHub Actions에서 sed로 자동 치환됨
-          image: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-frontend:d26ad27639c3e9942c31e99b3c95331ed09dc19d
+          # 🔥 [수정됨] Kustomize가 이 이름을 찾아서 ECR 주소로 바꿉니다.
+          # 절대 여기에 긴 ECR 주소를 직접 적지 마세요!
+          image: ipiece-frontend
           ports:
             - containerPort: 3000
           env:
