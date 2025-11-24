@@ -4,13 +4,13 @@
 kube-prometheus-stack:
   prometheus:
     prometheusSpec:
-      # [중요] OTel Collector가 메트릭을 쏠 수 있게 문을 열어둠
+      # [중요] OTel Collector가 메트릭을 쏠 수 있게 문을 열어둠 (Remote Write Receiver 활성화)
       enableRemoteWriteReceiver: true
-      
+
       # 데이터 보관 주기 (15일)
       retention: 15d
-      
-      # EBS gp3 50GB 사용 (월 5천원 수준)
+
+      # EBS gp3 50GB 사용
       storageSpec:
         volumeClaimTemplate:
           spec:
@@ -19,7 +19,7 @@ kube-prometheus-stack:
             resources:
               requests:
                 storage: 50Gi
-      
+
       # 메모리 리소스 제한
       resources:
         requests:
@@ -35,13 +35,22 @@ kube-prometheus-stack:
       enabled: true
       storageClassName: gp3
       size: 10Gi
-    
+
     # Loki를 데이터 소스로 자동 추가
     additionalDataSources:
       - name: Loki
         type: loki
         url: http://ipiece-monitoring-loki:3100/
         access: proxy
+    
+    # [ADDED] Grafana Root URL Config (Reverse Proxy 환경 고려)
+    env:
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+
+  # 👇 [추가] Node Exporter 끄기 (OTel이 대신 함)
+  nodeExporter:
+    enabled: false
 
 # ==========================================
 # 2. Loki (로그 저장소 - S3 사용)
@@ -56,7 +65,7 @@ loki-stack:
     isDefault: false
     config:
       auth_enabled: false
-      
+
       # S3 저장 구조 설정
       schema_config:
         configs:
@@ -67,7 +76,7 @@ loki-stack:
             index:
               prefix: index_
               period: 24h
-      
+
       # AWS S3 버킷 연결
       storage_config:
         aws:
@@ -92,13 +101,104 @@ loki-stack:
       working_directory: /data/loki/boltdb-shipper-compactor
       shared_store: s3
       retention_enabled: true
-    
+
     # 30일 지난 로그 자동 삭제
     limits_config:
       retention_period: 30d
-# [ADDED] Grafana Root URL Config
-grafana:
-  enabled: true
-  env:
-    GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
-    GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+
+# ==========================================
+# 3. OTel Collector (EKS 내부 수집용)
+# ==========================================
+otel:
+  mode: daemonset # 모든 노드에서 실행
+  image:
+    repository: otel/opentelemetry-collector-k8s
+    tag: 0.97.1
+
+  # OTel 설정 (Metric + Log 수집)
+  config:
+    receivers:
+      # 1. 노드 메트릭 (Node Exporter 대체)
+      hostmetrics:
+        collection_interval: 10s
+        scrapers:
+          cpu:
+          memory:
+          disk:
+          filesystem:
+          network:
+          load:
+
+      # 2. Kubelet 메트릭 (파드/노드 상태)
+      kubeletstats:
+        auth_type: "serviceAccount"
+        endpoint: "${env:K8S_NODE_NAME}:10250"
+        insecure_skip_verify: true
+        collection_interval: 10s
+        metric_groups:
+          - node
+          - pod
+
+      # 3. 로그 수집
+      filelog:
+        include:
+          - /var/log/pods/*/*/*.log
+        exclude:
+          - /var/log/pods/monitoring_ipiece-monitoring-*/*/*.log # 모니터링 스택 로그 제외
+        start_at: beginning
+        include_file_path: true
+        include_file_name: false
+        # (로그 파싱 로직은 길어서 생략)
+
+    processors:
+      batch:
+      # Kubernetes 메타데이터 자동 추가
+      k8sattributes:
+        auth_type: "serviceAccount"
+        passthrough: false
+        extract:
+          metadata:
+            - k8s.pod.name
+            - k8s.pod.uid
+            - k8s.deployment.name
+            - k8s.namespace.name
+            - k8s.node.name
+      # 리소스 감지
+      resourcedetection:
+        detectors: [env, system]
+
+    exporters:
+      # Prometheus로 전송 (Remote Write)
+      prometheusremotewrite:
+        endpoint: "http://ipiece-monitoring-kube-pro-prometheus.monitoring:9090/api/v1/write"
+        tls:
+          insecure: true
+
+      # Loki로 전송 (Push)
+      loki:
+        endpoint: "http://ipiece-monitoring-loki.monitoring:3100/loki/api/v1/push"
+        tls:
+          insecure: true
+
+    service:
+      pipelines:
+        metrics:
+          receivers: [hostmetrics, kubeletstats]
+          processors: [k8sattributes, batch, resourcedetection]
+          exporters: [prometheusremotewrite]
+        logs:
+          receivers: [filelog]
+          processors: [k8sattributes, batch, resourcedetection]
+          exporters: [loki]
+
+  # 권한 설정 (필수)
+  serviceAccount:
+    create: true
+    name: "otel-collector"
+  clusterRole:
+    create: true
+    name: "otel-collector"
+    rules:
+      - apiGroups: [""]
+        resources: ["nodes", "nodes/stats", "services", "endpoints", "pods", "namespaces", "nodes/proxy"]
+        verbs: ["get", "watch", "list"]
