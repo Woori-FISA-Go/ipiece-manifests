@@ -110,17 +110,20 @@ loki-stack:
 # 3. OTel Collector (EKS 내부 수집용)
 # ==========================================
 otel:
-  mode: daemonset # 모든 노드에서 실행
+  mode: daemonset
   image:
-    # ❌ 문제 발생: otel/opentelemetry-collector-k8s
-    # ✅ 수정: otel/opentelemetry-collector-contrib (Loki exporter 지원)
     repository: otel/opentelemetry-collector-contrib 
-    tag: latest # (사용 가능한 태그로 유지)
+    tag: "0.91.0"  # latest 대신 특정 버전 사용 (안정성)
 
-  # OTel 설정 (Metric + Log 수집)
+  # 👇 [추가] 환경변수 설정
+  extraEnvs:
+    - name: K8S_NODE_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
+
   config:
     receivers:
-      # 1. 노드 메트릭 (Node Exporter 대체)
       hostmetrics:
         collection_interval: 10s
         scrapers:
@@ -131,7 +134,6 @@ otel:
           network:
           load:
 
-      # 2. Kubelet 메트릭 (파드/노드 상태)
       kubeletstats:
         auth_type: "serviceAccount"
         endpoint: "${env:K8S_NODE_NAME}:10250"
@@ -141,20 +143,17 @@ otel:
           - node
           - pod
 
-      # 3. 로그 수집
       filelog:
         include:
           - /var/log/pods/*/*/*.log
         exclude:
-          - /var/log/pods/monitoring_ipiece-monitoring-*/*/*.log # 모니터링 스택 로그 제외
+          - /var/log/pods/monitoring_ipiece-monitoring-*/*/*.log
         start_at: beginning
         include_file_path: true
         include_file_name: false
-        # (로그 파싱 로직은 길어서 생략)
 
     processors:
       batch:
-      # Kubernetes 메타데이터 자동 추가
       k8sattributes:
         auth_type: "serviceAccount"
         passthrough: false
@@ -165,22 +164,18 @@ otel:
             - k8s.deployment.name
             - k8s.namespace.name
             - k8s.node.name
-      # 리소스 감지
       resourcedetection:
         detectors: [env, system]
 
     exporters:
-      # Prometheus로 전송 (Remote Write)
       prometheusremotewrite:
         endpoint: "http://ipiece-monitoring-kube-pro-prometheus.monitoring:9090/api/v1/write"
         tls:
           insecure: true
 
-      # Loki로 전송 (Push)
-      loki:
+      # 🔧 [수정] loki → lokiexporter
+      lokiexporter:
         endpoint: "http://ipiece-monitoring-loki.monitoring:3100/loki/api/v1/push"
-        tls:
-          insecure: true
 
     service:
       pipelines:
@@ -191,12 +186,12 @@ otel:
         logs:
           receivers: [filelog]
           processors: [k8sattributes, batch, resourcedetection]
-          exporters: [loki]
+          exporters: [lokiexporter]  # 🔧 여기도 수정
 
-  # 권한 설정 (필수)
   serviceAccount:
     create: true
     name: "otel-collector"
+  
   clusterRole:
     create: true
     name: "otel-collector"
