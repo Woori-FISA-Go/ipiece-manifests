@@ -1,0 +1,18 @@
+﻿apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ipiece-networking
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/Woori-FISA-Go/ipiece-manifests.git'
+    path: system/networking  # ★ 여기가 핵심! 헬름 없이 순수 YAML만 있는 폴더
+    targetRevision: develop
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: argocd        # (앱 자체는 argocd 네임스페이스에 생성)
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
