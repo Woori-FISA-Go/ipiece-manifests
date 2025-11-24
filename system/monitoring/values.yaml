@@ -113,7 +113,8 @@ otel:
   mode: daemonset # 모든 노드에서 실행
   image:
     repository: otel/opentelemetry-collector-k8s
-    tag: 0.97.1
+    # 👇 [수정됨] 존재하지 않는 태그 (0.97.1) 대신 latest 사용
+    tag: latest 
 
   # OTel 설정 (Metric + Log 수집)
   config:
