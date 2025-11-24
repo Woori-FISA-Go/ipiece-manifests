@@ -207,8 +207,10 @@ opentelemetry-collector:
         tls:
           insecure: true
 
-      loki:
-        endpoint: "http://ipiece-monitoring-loki.monitoring:3100/loki/api/v1/push"
+      otlphttp/loki:
+        endpoint: "http://ipiece-monitoring-loki.monitoring:3100/otlp"
+        tls:
+          insecure: true
 
     service:
       pipelines:
@@ -219,7 +221,7 @@ opentelemetry-collector:
         logs:
           receivers: [filelog]
           processors: [k8sattributes, batch, resourcedetection]
-          exporters: [loki]
+          exporters: [otlphttp/loki]
 
   serviceAccount:
     create: true
