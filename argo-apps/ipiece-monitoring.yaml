@@ -3,21 +3,23 @@ kind: Application
 metadata:
   name: ipiece-monitoring
   namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/Woori-FISA-Go/ipiece-manifests.git'
+    repoURL: https://github.com/Woori-FISA-Go/ipiece-manifests.git
+    targetRevision: develop  # develop 브랜치를 바라보게 설정
     path: system/monitoring
-    targetRevision: develop
     helm:
       valueFiles:
         - values.yaml
   destination:
-    server: 'https://kubernetes.default.svc'
+    server: https://kubernetes.default.svc
     namespace: monitoring
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=true
+      - CreateNamespace=true  # 네임스페이스 없으면 알아서 만듦
