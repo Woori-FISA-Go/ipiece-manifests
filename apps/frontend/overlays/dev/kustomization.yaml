@@ -2,18 +2,18 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - ../../base
+- ../../base
 
 images:
-  - name: ipiece-frontend
-    newName: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-frontend
-    newTag: latest
+- name: ipiece-frontend
+  newName: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-frontend
+  newTag: bff05f6f741829f2a2a874ff4dae3bc79209459c
 
 patches:
-  - target:
-      kind: Deployment
-      name: ipiece-frontend
-    patch: |-
-      - op: replace
-        path: /spec/replicas
-        value: 1
+- patch: |-
+    - op: replace
+      path: /spec/replicas
+      value: 1
+  target:
+    kind: Deployment
+    name: ipiece-frontend
