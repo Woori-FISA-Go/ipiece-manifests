@@ -96,3 +96,9 @@ loki-stack:
     # 30일 지난 로그 자동 삭제
     limits_config:
       retention_period: 30d
+# [ADDED] Grafana Root URL Config
+grafana:
+  enabled: true
+  env:
+    GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+    GF_SERVER_SERVE_FROM_SUB_PATH: "true"
