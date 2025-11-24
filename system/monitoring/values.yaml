@@ -1,0 +1,98 @@
+# ==========================================
+# 1. Prometheus (메트릭 저장소 - EBS 사용)
+# ==========================================
+kube-prometheus-stack:
+  prometheus:
+    prometheusSpec:
+      # [중요] OTel Collector가 메트릭을 쏠 수 있게 문을 열어둠
+      enableRemoteWriteReceiver: true
+      
+      # 데이터 보관 주기 (15일)
+      retention: 15d
+      
+      # EBS gp3 50GB 사용 (월 5천원 수준)
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: gp3
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 50Gi
+      
+      # 메모리 리소스 제한
+      resources:
+        requests:
+          memory: 1Gi
+        limits:
+          memory: 2Gi
+
+  # 그라파나 (시각화 도구)
+  grafana:
+    enabled: true
+    adminPassword: "admin" # 초기 비번 (로그인 후 변경 권장)
+    persistence:
+      enabled: true
+      storageClassName: gp3
+      size: 10Gi
+    
+    # Loki를 데이터 소스로 자동 추가
+    additionalDataSources:
+      - name: Loki
+        type: loki
+        url: http://ipiece-monitoring-loki:3100/
+        access: proxy
+
+# ==========================================
+# 2. Loki (로그 저장소 - S3 사용)
+# ==========================================
+loki-stack:
+  # [중요] OTel Collector를 사용할 것이므로 기본 수집기(Promtail)는 끕니다.
+  promtail:
+    enabled: false
+
+  loki:
+    enabled: true
+    isDefault: false
+    config:
+      auth_enabled: false
+      
+      # S3 저장 구조 설정
+      schema_config:
+        configs:
+          - from: 2024-01-01
+            store: boltdb-shipper
+            object_store: s3
+            schema: v11
+            index:
+              prefix: index_
+              period: 24h
+      
+      # AWS S3 버킷 연결
+      storage_config:
+        aws:
+          s3: s3://ap-northeast-2/ipiece-loki-store
+          region: ap-northeast-2
+
+    # [보안] S3 접근 키 설정 (Kubernetes Secret에서 가져옴)
+    extraEnv:
+      - name: AWS_ACCESS_KEY_ID
+        valueFrom:
+          secretKeyRef:
+            name: loki-s3-secret
+            key: S3_AWS_ACCESS_KEY_ID
+      - name: AWS_SECRET_ACCESS_KEY
+        valueFrom:
+          secretKeyRef:
+            name: loki-s3-secret
+            key: S3_AWS_SECRET_ACCESS_KEY
+
+    # 오래된 로그 정리 (Compactor)
+    compactor:
+      working_directory: /data/loki/boltdb-shipper-compactor
+      shared_store: s3
+      retention_enabled: true
+    
+    # 30일 지난 로그 자동 삭제
+    limits_config:
+      retention_period: 30d
