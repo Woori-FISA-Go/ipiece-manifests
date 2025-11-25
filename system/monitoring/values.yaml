@@ -103,7 +103,7 @@ loki-stack:
 # ==========================================
 # 3. OTel Collector (EKS 내부 수집용)
 # ==========================================
-opentelemetry-collector:
+otel:
   mode: daemonset
   
   image:
