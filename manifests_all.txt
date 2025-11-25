@@ -1,0 +1,1099 @@
+﻿===== FILE: C:\Users\KO\Desktop\ipiece-manifests\ipiece-root-app.yaml =====
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ipiece-root
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Woori-FISA-Go/ipiece-manifests.git
+    targetRevision: develop         # ?ㅺ? ?곕뒗 釉뚮옖移?
+    path: argo-apps                 # ?????대뜑 ?덉쓽 Application YAML?ㅼ쓣 ?먯떇?쇰줈 ?몄떇
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd               # Application 由ъ냼???먯껜媛 ?꾩튂???ㅼ엫?ㅽ럹?댁뒪
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+
+
+===== FILE: C:\Users\KO\Desktop\ipiece-manifests\manifests_all.txt =====
+===== FILE: C:\Users\KO\Desktop\ipiece-manifests\ipiece-root-app.yaml =====
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ipiece-root
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Woori-FISA-Go/ipiece-manifests.git
+    targetRevision: develop         # ?ㅺ? ?곕뒗 釉뚮옖移?
+    path: argo-apps                 # ?????대뜑 ?덉쓽 Application YAML?ㅼ쓣 ?먯떇?쇰줈 ?몄떇
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd               # Application 由ъ냼???먯껜媛 ?꾩튂???ㅼ엫?ㅽ럹?댁뒪
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+
+
+
+
+
+===== FILE: C:\Users\KO\Desktop\ipiece-manifests\README.md =====
+# IPiece Kubernetes Manifests
+
+**IPiece ?꾨줈?앺듃??Kubernetes ?명봽?쇰? ?뺤쓽?섎뒗 GitOps ??μ냼?낅땲??**
+
+- 紐⑤뱺 由ъ냼?ㅻ뒗 **ArgoCD**瑜??듯빐 Kubernetes ?대윭?ㅽ꽣(EKS)??吏?띿쟻?쇰줈 ?숆린?붾맗?덈떎.
+- ?좏뵆由ъ??댁뀡蹂?Kubernetes 由ъ냼?ㅻ뒗 **Kustomize**濡?Dev / Prod ?섍꼍??遺꾨━?섏뿬 愿由ы빀?덈떎.
+
+---
+
+## ?뱚 Repository Structure
+
+```bash
+.
+?쒋?? apps/
+??  ?쒋?? backend/             # Spring Boot Backend (Prod/Dev ?ㅻ쾭?덉씠)
+??  ??  ?쒋?? base/            # 怨듯넻 Deployment / Service / Ingress
+??  ??  ?붴?? overlays/
+??  ??      ?쒋?? dev/
+??  ??      ?붴?? prod/
+??  ??
+??  ?붴?? frontend/            # Next.js Frontend (Prod/Dev ?ㅻ쾭?덉씠)
+??      ?쒋?? base/
+??      ?붴?? overlays/
+??          ?쒋?? dev/
+??          ?붴?? prod/
+??
+?쒋?? system/
+??  ?붴?? networking/          # 怨듭슜 ALB(Ingress) ?ㅼ젙 (ArgoCD, Monitoring)
+??      ?쒋?? argocd-ingress.yaml
+??      ?붴?? monitoring-ingress.yaml
+??
+?붴?? argo-apps/               # ArgoCD Applications (App ?뺤쓽)
+    ?쒋?? ipiece-backend-prod.yaml
+    ?쒋?? ipiece-frontend-prod.yaml
+    ?쒋?? ipiece-monitoring.yaml
+    ?붴?? ipiece-networking.yaml
+
+```
+
+- **apps/**
+    - 鍮꾩쫰?덉뒪 ?좏뵆由ъ??댁뀡 ?뚰겕濡쒕뱶(frontend / backend)瑜??뺤쓽?⑸땲??
+    - `base` + `overlays/dev|prod` 援ъ“濡??섍꼍蹂?李⑥씠瑜?理쒖냼 diff濡?愿由ы빀?덈떎.
+- **system/**
+    - ?대윭?ㅽ꽣 怨듭슜 ?ㅽ듃?뚰궧 援ъ꽦(?대???ALB, ArgoCD, 紐⑤땲?곕쭅 吏꾩엯???????뺤쓽?⑸땲??
+- **argo-apps/**
+    - ArgoCD?먯꽌 ?쎌뼱媛??`Application` 由ъ냼?ㅻ? ?뺤쓽?⑸땲??
+    - ?꾩옱??`backend-prod`, `frontend-prod`, `monitoring`, `networking`??媛곴컖 媛쒕퀎 ?깆쑝濡?愿由ы빀?덈떎.
+
+---
+
+## ?숋툘 GitOps Workflow
+
+<img width="1154" height="500" alt="Image" src="https://github.com/user-attachments/assets/c00ec3b7-ab9e-4cd7-8360-06273235f686" />
+
+1. **?좏뵆由ъ??댁뀡 ??μ냼(Frontend/Backend)** ?먯꽌 肄붾뱶 蹂寃???GitHub??Push
+2. GitHub Actions(CI)媛 ?숈옉
+    - Docker ?대?吏瑜?鍮뚮뱶
+    - ECR??Push
+    - ????μ냼(`ipiece-manifests`)??`kustomization.yaml` ?대?吏 ?쒓렇瑜??낅뜲?댄듃
+3. 蹂寃쎈맂 Manifest媛 `develop` 釉뚮옖移섏뿉 癒몄?
+4. ArgoCD媛 `develop` 釉뚮옖移?蹂寃쎌쓣 媛먯?
+5. EKS ?대윭?ㅽ꽣???먮룞?쇰줈 Sync & 諛고룷
+
+> ?명봽??蹂寃쎌? ??긽 Git Commit ??PR ??Merge ??ArgoCD Sync ?쒖꽌濡?吏꾪뻾?섎ŉ,
+> 
+> 
+> ?섎룞 `kubectl apply`???덉쇅 ?곹솴?먯꽌留??ъ슜?⑸땲??
+> 
+
+---
+
+## ?룛 apps/backend: Spring Boot Backend
+
+### Base 由ъ냼??
+
+寃쎈줈: `apps/backend/base/`
+
+- **Deployment**: `ipiece-server`
+    - ?대?吏: `235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-server`
+    - 而⑦뀒?대꼫 ?ы듃: `8080`
+    - ?섍꼍 蹂??
+        - `SPRING_PROFILES_ACTIVE=prod`
+        - `SERVER_SERVLET_CONTEXT_PATH=/api`
+    - ?ъ뒪 泥댄겕:
+        - Liveness: `GET /api/healthz` (port 8080)
+        - Readiness: `GET /api/healthz` (port 8080)
+- **Service**: `ipiece-server`
+    - Type: `ClusterIP`
+    - Port: `80 ??8080`
+- **Ingress**: `ipiece-backend-ingress`
+    - Class: `alb` (AWS Load Balancer Controller)
+    - Annotations:
+        - `alb.ingress.kubernetes.io/scheme: internet-facing`
+        - `alb.ingress.kubernetes.io/target-type: ip`
+        - `alb.ingress.kubernetes.io/group.name: ipiece` (?꾨줎?몄? 媛숈? ALB 怨듭쑀)
+        - `alb.ingress.kubernetes.io/healthcheck-path: /api/healthz`
+    - ?쇱슦??
+        - `/api/` prefix ??Service `ipiece-server:80`
+
+> 寃곌낵?곸쑝濡??몃? ?ъ슜?먮뒗 https://<ALB>/api/** 濡?諛깆뿏??API瑜??몄텧?⑸땲??
+> 
+
+### Overlays
+
+### Dev
+
+寃쎈줈: `apps/backend/overlays/dev/`
+
+- ?대?吏 ?쒓렇:
+    - `newTag: "3893089"` (?? ?뱀젙 而ㅻ컠/鍮뚮뱶 踰덊샇)
+- replicas:
+    - `ipiece-server: 1`
+- ?섍꼍:
+    - Kustomize ?⑥튂濡?`SPRING_PROFILES_ACTIVE=dev` 濡?援먯껜
+
+### Prod
+
+寃쎈줈: `apps/backend/overlays/prod/`
+
+- `resources: ../../base`
+- replicas:
+    - `ipiece-server: 2` (Prod ?몃옒?쎌슜)
+- ?대?吏 ?쒓렇:
+    - `newTag: 21de53d` (諛고룷???ъ슜??Git SHA/鍮뚮뱶 ?쒓렇)
+
+---
+
+## ?룛 apps/frontend: Next.js Frontend
+
+### Base 由ъ냼??
+
+寃쎈줈: `apps/frontend/base/`
+
+- **Deployment**: `ipiece-frontend`
+    - 而⑦뀒?대꼫 ?ы듃: `3000`
+    - ?대?吏 ?뚮젅?댁뒪??? `ipiece-frontend` (Kustomize濡?ECR 寃쎈줈濡?移섑솚)
+    - `NODE_ENV=production`
+- **Service**: `ipiece-frontend`
+    - Type: `ClusterIP`
+    - Port: `80 ??3000`
+    - Annotation:
+        - `service.kubernetes.io/topology-mode: "Auto"`
+            
+            ??媛숈? AZ???뚮뱶瑜??곗꽑 ?ъ슜 (鍮꾩슜 ?덇컧 + 吏?곗떆媛?媛먯냼)
+            
+- **Ingress**: `ipiece-frontend-ingress`
+    - Class: `alb`
+    - Annotations:
+        - `alb.ingress.kubernetes.io/scheme: internet-facing`
+        - `alb.ingress.kubernetes.io/target-type: ip`
+        - `alb.ingress.kubernetes.io/healthcheck-path: /`
+        - `alb.ingress.kubernetes.io/group.name: ipiece` (諛깆뿏?쒖? ALB 怨듭쑀)
+    - ?쇱슦??
+        - `/` prefix ??Service `ipiece-frontend:80`
+
+> ?숈씪??ALB?먯꽌 /??Frontend, /api/??Backend瑜?泥섎━?섎룄濡?援ъ꽦?섏뼱 ?덉뒿?덈떎.
+> 
+
+### Overlays
+
+### Dev
+
+寃쎈줈: `apps/frontend/overlays/dev/`
+
+- ?대?吏:
+    - `ipiece-frontend` ??`?쫉kr.ecr??ipiece-frontend:27a8d8f3...`
+- replicas:
+    - `ipiece-frontend: 1` (媛쒕컻/?뚯뒪???섍꼍)
+
+### Prod
+
+寃쎈줈: `apps/frontend/overlays/prod/`
+
+- ?대?吏:
+    - `ipiece-frontend` ??`?쫉kr.ecr??ipiece-frontend:78970ab4...`
+- replicas:
+    - `ipiece-frontend: 2` (?댁쁺 ?몃옒?????
+
+---
+
+## ?뙋 system/networking: 怨듭슜 ?ㅽ듃?뚰궧 援ъ꽦
+
+寃쎈줈: `system/networking/`
+
+### ArgoCD Ingress
+
+- ?뚯씪: `argocd-ingress.yaml`
+- 紐⑹쟻: ?대???ALB瑜??듯빐 ArgoCD UI ?묒냽
+- 二쇱슂 ?ㅼ젙:
+    - `alb.ingress.kubernetes.io/scheme: internal`
+    - `alb.ingress.kubernetes.io/group.name: common-alb`
+    - Health check: `/argocd/healthz`
+    - `/argocd` ??Service `argocd-server:80`
+
+### Monitoring Ingress
+
+- ?뚯씪: `monitoring-ingress.yaml`
+- 紐⑹쟻: ?대???ALB瑜??듯빐 紐⑤땲?곕쭅 ?뷀듃由??붾뱶?ъ씤???쒓났
+- 二쇱슂 ?쇱슦??
+    - `/api/v1/write` ??Prometheus Remote Write
+    - `/loki/api/v1/push` ??Loki
+    - `/grafana` ??Grafana UI
+
+> ??Ingress?ㅼ? argo-apps/ipiece-networking.yaml 瑜??듯빐 ArgoCD???섑빐 愿由щ맗?덈떎.
+> 
+
+---
+
+## ?? ArgoCD Applications
+
+寃쎈줈: `argo-apps/`
+
+?꾩옱??App-of-Apps ??? 媛???븷蹂꾨줈 Application??遺꾨━??愿由ы빀?덈떎.
+
+### ipiece-backend-prod
+
+- `path: apps/backend/overlays/prod`
+- `targetRevision: develop`
+- `destination.namespace: default`
+- `syncPolicy.automated` ?쒖꽦??
+    - `prune: true`
+    - `selfHeal: true`
+
+### ipiece-frontend-prod
+
+- `path: apps/frontend/overlays/prod`
+- `namespace: ipiece-frontend-prod`
+- Prod Frontend ?꾩슜 ?ㅼ엫?ㅽ럹?댁뒪??諛고룷
+
+### ipiece-monitoring
+
+- `path: system/monitoring`
+- Helm 李⑦듃 + `values.yaml` 議고빀?쇰줈 Prometheus/Loki/Grafana ?ㅽ깮 援ъ꽦 (Planned/援ъ텞 以?
+
+### ipiece-networking
+
+- `path: system/networking`
+- 怨듭슜 internal ALB, ArgoCD Ingress, Monitoring Ingress ?깆쓣 愿由?
+
+---
+
+## ??Rollback Strategy
+
+????μ냼??GitOps 泥좏븰???곕씪 **Git 湲곕줉??湲곗??쇰줈 濡ㅻ갚**?⑸땲??
+
+1. ?먰븯???쒖젏??而ㅻ컠??湲곗??쇰줈 `git revert` ?섑뻾
+2. `develop` ?먮뒗 `release/*` 釉뚮옖移섏뿉 Push
+3. ArgoCD媛 蹂寃쎌쓣 媛먯? ???대떦 ?쒖젏 Manifest濡??먮룞 Sync
+
+> ?대윭?ㅽ꽣?먯꽌 ?섎룞?쇰줈 由ъ냼?ㅻ? ?섏젙?섏? ?딄퀬,
+> 
+> 
+> **紐⑤뱺 蹂寃쎌쓣 Git ?대젰?쇰줈 異붿쟻**?섎뒗 寃껋쓣 紐⑺몴濡??⑸땲??
+> 
+
+---
+
+## ?뱦 Current Status
+
+- ??**Frontend**
+    - Dev / Prod Kustomize ?ㅻ쾭?덉씠 諛?ArgoCD Prod Application 援ъ꽦 ?꾨즺
+    - ECR 湲곕컲 ?대?吏 ?쒓렇濡??댁쁺 以?
+- ??**Backend**
+    - Kustomize 湲곕컲 Dev / Prod 援ъ“ 諛?Prod Application 援ъ꽦 ?꾨즺
+    - ?ъ뒪泥댄겕(`/api/healthz`) 諛?ALB ?ㅼ젙 ?뺣━ ?꾨즺
+- ?븪 **Monitoring**
+    - Ingress 諛?ArgoCD Application ?뺤쓽 ?꾨즺
+    - Helm 湲곕컲 ?ㅽ깮(system/monitoring)? 援ъ텞/?쒕떇 吏꾪뻾 以?
+
+
+
+===== FILE: C:\Users\KO\Desktop\ipiece-manifests\apps\backend\base\deployment.yaml =====
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ipiece-server
+  labels:
+    app: ipiece-server
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ipiece-server
+  template:
+    metadata:
+      labels:
+        app: ipiece-server
+    spec:
+      imagePullSecrets:
+      - name: ecr-secret
+      containers:
+      - name: ipiece-server
+        image: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-server:latest
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "prod"
+        # ??[異붽??? 諛깆뿏???좏뵆由ъ??댁뀡??湲곕낯 寃쎈줈瑜?/api濡??ㅼ젙
+        # ?댁젣 諛깆뿏?쒕뒗 紐⑤뱺 ?붿껌??/api濡??쒖옉?쒕떎怨??몄떇?⑸땲??
+        - name: SERVER_SERVLET_CONTEXT_PATH
+          value: "/api"
+        envFrom:
+        - secretRef:
+            name: ipiece-backend-env
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        
+        # ??[?섏젙?? Context Path媛 /api濡??ㅼ젙?섏뿀?쇰?濡? ?ъ뒪泥댄겕 二쇱냼??/api媛 遺숈뼱????
+        # 湲곗〈 /healthz -> /api/healthz 濡?蹂寃?
+        livenessProbe:
+          httpGet:
+            path: /api/healthz
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/healthz
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          failureThreshold: 3
+
+
+===== FILE: C:\Users\KO\Desktop\ipiece-manifests\apps\backend\base\ingress.yaml =====
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ipiece-backend-ingress
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+
+    alb.ingress.kubernetes.io/target-type: ip
+
+    alb.ingress.kubernetes.io/group.name: ipiece
+
+    alb.ingress.kubernetes.io/healthcheck-path: /api/healthz
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /api/
+            pathType: Prefix
+            backend:
+              service:
+                name: ipiece-server
+                port:
+                  number: 80
+
+
+===== FILE: C:\Users\KO\Desktop\ipiece-manifests\apps\backend\base\kustomization.yaml =====
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: default
+
+resources:
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+
+commonLabels:
+  app: ipiece-server
+  managed-by: argocd
+
+
+===== FILE: C:\Users\KO\Desktop\ipiece-manifests\apps\backend\base\service.yaml =====
+apiVersion: v1
+kind: Service
+metadata:
+  name: ipiece-server
+  labels:
+    app: ipiece-server
+spec:
+  type: ClusterIP
+  selector:
+    app: ipiece-server
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+
+
+===== FILE: C:\Users\KO\Desktop\ipiece-manifests\apps\backend\overlays\dev\kustomization.yaml =====
+kind: Kustomization
+
+
+namespace: default
+
+images:
+- name: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-server
+  newName: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-server
+  newTag: "3893089"
+- name: ipiece-server
+  newName: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-server
+  newTag: latest
+
+replicas:
+- count: 1
+  name: ipiece-server
+
+patches:
+- patch: |-
+    - op: replace
+      path: /spec/template/spec/containers/0/env/0/value
+      value: "dev"
+  target:
+    kind: Deployment
+    name: ipiece-server
+apiVersion: kustomize.config.k8s.io/v1beta1
+resources:
+- ../../base
+
+
+
+===== FILE: C:\Users\KO\Desktop\ipiece-manifests\apps\backend\overlays\prod\kustomization.yaml =====
+kind: Kustomization
+
+resources:
+- ../../base
+
+patches:
+- patch: |-
+    - op: replace
+      path: /spec/replicas
+      value: 2
+  target:
+    kind: Deployment
+    name: ipiece-server
+apiVersion: kustomize.config.k8s.io/v1beta1
+images:
+- name: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-server
+  newName: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-server
+  newTag: 21de53d
+
+
+
+===== FILE: C:\Users\KO\Desktop\ipiece-manifests\apps\frontend\base\deployment.yaml =====
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ipiece-frontend
+  labels:
+    app: ipiece-frontend
+spec:
+  # 湲곕낯媛믪? 1濡??먭퀬, overlays/prod?먯꽌 2濡???뼱?곕뒗 寃??뺤꽍?댁?留?
+  # ?꾩옱 ?ㅼ젙??2濡??먯뀛??overlays媛 ??뼱?곕?濡??곴??놁뒿?덈떎.
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ipiece-frontend
+  template:
+    metadata:
+      labels:
+        app: ipiece-frontend
+    spec:
+      containers:
+        - name: ipiece-frontend
+          # ?뵦 [?섏젙?? Kustomize媛 ???대쫫??李얠븘??ECR 二쇱냼濡?諛붽퓠?덈떎.
+          # ?덈? ?ш린??湲?ECR 二쇱냼瑜?吏곸젒 ?곸? 留덉꽭??
+          image: ipiece-frontend
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: "production"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+
+
+===== FILE: C:\Users\KO\Desktop\ipiece-manifests\apps\frontend\base\ingress.yaml =====
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ipiece-frontend-ingress
+  annotations:
+    # 외부 접속 허용
+    alb.ingress.kubernetes.io/scheme: internet-facing
+
+    # 파드 IP로 직접 전송
+    alb.ingress.kubernetes.io/target-type: ip
+
+    # 헬스체크 경로
+    alb.ingress.kubernetes.io/healthcheck-path: /
+
+    # ✅ 프론트/백엔드가 같은 ALB를 공유하도록 하는 그룹 이름
+    alb.ingress.kubernetes.io/group.name: ipiece
+spec:
+  # ALB IngressClass 사용
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ipiece-frontend
+                port:
+                  number: 80
+
+
+
+===== FILE: C:\Users\KO\Desktop\ipiece-manifests\apps\frontend\base\kustomization.yaml =====
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+
+
+
+===== FILE: C:\Users\KO\Desktop\ipiece-manifests\apps\frontend\base\service.yaml =====
+apiVersion: v1
+kind: Service
+metadata:
+  name: ipiece-frontend
+  labels:
+    app: ipiece-frontend
+  annotations:
+    # 🔥 같은 AZ에 있는 파드에게 우선 트래픽 전송 (AWS 비용 절감 & 속도 향상)
+    service.kubernetes.io/topology-mode: "Auto"
+spec:
+  type: ClusterIP
+  selector:
+    app: ipiece-frontend
+  ports:
+    - port: 80
+      targetPort: 3000
+      protocol: TCP
+      name: http
+
+
+
+===== FILE: C:\Users\KO\Desktop\ipiece-manifests\apps\frontend\overlays\dev\kustomization.yaml =====
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ../../base
+
+images:
+- name: ipiece-frontend
+  newName: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-frontend
+  newTag: 27a8d8f3f80f28c02cb99d6b619ee468e9d032fb
+
+patches:
+- patch: |-
+    - op: replace
+      path: /spec/replicas
+      value: 1
+  target:
+    kind: Deployment
+    name: ipiece-frontend
+
+
+
+===== FILE: C:\Users\KO\Desktop\ipiece-manifests\apps\frontend\overlays\prod\kustomization.yaml =====
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ../../base
+
+images:
+- name: ipiece-frontend
+  newName: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-frontend
+  newTag: 78970ab454704b3b22971420dbc299e75cd764db
+
+patches:
+- patch: |-
+    - op: replace
+      path: /spec/replicas
+      value: 2
+  target:
+    kind: Deployment
+    name: ipiece-frontend
+
+
+
+===== FILE: C:\Users\KO\Desktop\ipiece-manifests\argo-apps\ipiece-backend-prod.yaml =====
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ipiece-backend-prod   # ?대쫫 蹂寃?
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Woori-FISA-Go/ipiece-manifests
+    targetRevision: develop
+    path: apps/backend/overlays/prod  # ??以묒슂: Prod ?대뜑 諛붾씪蹂닿린
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default        # ?댁쁺? default ?ㅼ엫?ㅽ럹?댁뒪 ?ъ슜
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+
+
+===== FILE: C:\Users\KO\Desktop\ipiece-manifests\argo-apps\ipiece-frontend-prod.yaml =====
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ipiece-frontend-prod
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/Woori-FISA-Go/ipiece-manifests.git'
+    path: apps/frontend/overlays/prod
+    targetRevision: develop
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: ipiece-frontend-prod
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+
+
+===== FILE: C:\Users\KO\Desktop\ipiece-manifests\argo-apps\ipiece-monitoring.yaml =====
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ipiece-monitoring
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Woori-FISA-Go/ipiece-manifests.git
+    targetRevision: develop  # develop 브랜치를 바라보게 설정
+    path: system/monitoring
+    helm:
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true  # 네임스페이스 없으면 알아서 만듦
+
+
+===== FILE: C:\Users\KO\Desktop\ipiece-manifests\argo-apps\ipiece-networking.yaml =====
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ipiece-networking
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/Woori-FISA-Go/ipiece-manifests.git'
+    path: system/networking  # ★ 여기가 핵심! 헬름 없이 순수 YAML만 있는 폴더
+    targetRevision: develop
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: argocd        # (앱 자체는 argocd 네임스페이스에 생성)
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+
+
+===== FILE: C:\Users\KO\Desktop\ipiece-manifests\system\monitoring\Chart.yaml =====
+apiVersion: v2
+name: ipiece-monitoring
+description: Monitoring Stack (Prometheus + Loki + Grafana + OTel)
+type: application
+version: 0.1.0
+dependencies:
+  - name: kube-prometheus-stack
+    version: 61.3.2
+    repository: https://prometheus-community.github.io/helm-charts
+  - name: loki-stack
+    version: 2.10.2
+    repository: https://grafana.github.io/helm-charts
+  
+  # ?몙 [異붽?] OTel Collector 李⑦듃
+  - name: opentelemetry-collector
+    version: 0.97.1
+    repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+    alias: otel
+
+
+===== FILE: C:\Users\KO\Desktop\ipiece-manifests\system\monitoring\values.yaml =====
+# ==========================================
+# 1. Prometheus (硫뷀듃由???μ냼 - EBS ?ъ슜)
+# ==========================================
+kube-prometheus-stack:
+  prometheus:
+    prometheusSpec:
+      # OTel remote write 諛쏄린
+      enableRemoteWriteReceiver: true
+      retention: 15d
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: gp3
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 50Gi
+      resources:
+        requests:
+          memory: 1Gi
+        limits:
+          memory: 2Gi
+
+  grafana:
+    enabled: true
+    adminPassword: "admin"
+    persistence:
+      enabled: true
+      storageClassName: gp3
+      size: 10Gi
+
+    # ?뵦 Grafana?먯꽌 Loki瑜?湲곕낯 ?곗씠?곗냼?ㅻ줈 遺숈씠湲?
+    additionalDataSources:
+      - name: Loki
+        type: loki
+        # CHANGED: Loki ?쒕퉬???대쫫??ipiece-loki 濡?怨좎젙 (?꾨옒 loki-stack ?ㅼ젙怨?留ㅼ묶)
+        url: http://ipiece-loki:3100/
+        access: proxy
+
+    # /grafana ?쒕툕?⑥뒪濡??몄텧
+    env:
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+
+  nodeExporter:
+    enabled: false
+
+# ==========================================
+# 2. Loki (濡쒓렇 ??μ냼 - S3 ?ъ슜)
+# ==========================================
+loki-stack:
+  promtail:
+    enabled: false
+
+  loki:
+    enabled: true
+    isDefault: false
+
+    # CHANGED: Loki 由ъ냼???대쫫??ipiece-loki 濡?怨좎젙
+    # => Service ?대쫫??ipiece-loki (port 3100) ?쇰줈 ?앷?
+    fullnameOverride: ipiece-loki
+
+    config:
+      auth_enabled: false
+      schema_config:
+        configs:
+          - from: 2024-01-01
+            store: boltdb-shipper
+            object_store: s3
+            schema: v11
+            index:
+              prefix: index_
+              period: 24h
+
+      storage_config:
+        aws:
+          # CHANGED: ?ㅼ젣 S3 踰꾪궥 寃쎈줈 ?뺥깭濡??섏젙
+          #   - Region? ?꾨옒 region ?꾨뱶?먯꽌 吏??
+          #   - 踰꾪궥 ?대쫫??ipiece-loki-store ?쇨퀬 ?덉쑝???대젃寃??먮뒗寃??쇰컲??
+          s3: s3://ipiece-loki-store
+          region: ap-northeast-2
+
+    extraEnv:
+      - name: AWS_ACCESS_KEY_ID
+        valueFrom:
+          secretKeyRef:
+            name: loki-s3-secret
+            key: S3_AWS_ACCESS_KEY_ID
+      - name: AWS_SECRET_ACCESS_KEY
+        valueFrom:
+          secretKeyRef:
+            name: loki-s3-secret
+            key: S3_AWS_SECRET_ACCESS_KEY
+
+    compactor:
+      working_directory: /data/loki/boltdb-shipper-compactor
+      shared_store: s3
+      retention_enabled: true
+
+    limits_config:
+      retention_period: 30d
+
+# ==========================================
+# 3. OTel Collector (EKS ?대? ?섏쭛??
+# ==========================================
+opentelemetry-collector:
+  mode: daemonset
+  
+  image:
+    repository: otel/opentelemetry-collector-contrib
+    tag: "0.91.0"
+
+  # ?섍꼍蹂???ㅼ젙
+  extraEnvs:
+    - name: K8S_NODE_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
+    - name: K8S_POD_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.name
+    - name: K8S_NAMESPACE
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.namespace
+
+  # 蹂쇰ⅷ 留덉슫??(濡쒓렇 ?섏쭛??
+  extraVolumes:
+    - name: varlog
+      hostPath:
+        path: /var/log
+    - name: varlibdockercontainers
+      hostPath:
+        path: /var/lib/docker/containers
+
+  extraVolumeMounts:
+    - name: varlog
+      mountPath: /var/log
+      readOnly: true
+    - name: varlibdockercontainers
+      mountPath: /var/lib/docker/containers
+      readOnly: true
+
+  config:
+    receivers:
+      hostmetrics:
+        collection_interval: 10s
+        scrapers:
+          cpu: {}
+          memory: {}
+          disk: {}
+          filesystem: {}
+          network: {}
+          load: {}
+
+      kubeletstats:
+        auth_type: "serviceAccount"
+        endpoint: "${env:K8S_NODE_NAME}:10250"
+        insecure_skip_verify: true
+        collection_interval: 10s
+        metric_groups:
+          - node
+          - pod
+
+      filelog:
+        include:
+          - /var/log/pods/*/*/*.log
+        exclude:
+          - /var/log/pods/monitoring_*/*/*.log
+        start_at: beginning
+        include_file_path: true
+        include_file_name: false
+        operators:
+          - type: router
+            id: get-format
+            routes:
+              - output: parser-docker
+                expr: 'body matches "^\\{"'
+              - output: parser-containerd
+                expr: 'body matches "^[^ Z]+ "'
+          - type: regex_parser
+            id: parser-containerd
+            regex: '^(?P<time>[^ ^Z]+) (?P<stream>stdout|stderr) (?P<logtag>[^ ]*) ?(?P<log>.*)$'
+            output: extract_metadata_from_filepath
+            timestamp:
+              parse_from: attributes.time
+              layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+          - type: json_parser
+            id: parser-docker
+            output: extract_metadata_from_filepath
+            timestamp:
+              parse_from: attributes.time
+              layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+          - type: regex_parser
+            id: extract_metadata_from_filepath
+            regex: '^.*\/(?P<namespace>[^_]+)_(?P<pod_name>[^_]+)_(?P<uid>[a-f0-9\-]{36})\/(?P<container_name>[^\._]+)\/(?P<restart_count>\d+)\.log$'
+            parse_from: attributes["log.file.path"]
+
+    processors:
+      batch:
+        timeout: 10s
+        send_batch_size: 1024
+      
+      k8sattributes:
+        auth_type: "serviceAccount"
+        passthrough: false
+        extract:
+          metadata:
+            - k8s.pod.name
+            - k8s.pod.uid
+            - k8s.deployment.name
+            - k8s.namespace.name
+            - k8s.node.name
+      
+      resourcedetection:
+        detectors: [env, system]
+
+    exporters:
+      # CHANGED: Prometheus remote write ?붾뱶?ъ씤?몃?
+      #   kube-prometheus-stack媛 ?대??먯꽌 留뚮뱶??怨좎젙 ?쒕퉬?ㅼ씤
+      #   prometheus-operated 濡??곌껐
+      #
+      # ???쒕퉬?ㅻ뒗 kube-prometheus-stack ?ㅼ튂 ????긽 媛숈씠 ?앷린怨?
+      # remote write receiver???ш린???대젮 ?덉쓬.
+      prometheusremotewrite:
+        endpoint: "http://prometheus-operated.monitoring:9090/api/v1/write"
+        tls:
+          insecure: true
+
+      # CHANGED: Loki ?붾뱶?ъ씤?몃? ?곕━媛 fullnameOverride濡?怨좎젙??
+      #   ipiece-loki ?쒕퉬?ㅻ줈 ?곌껐
+      otlphttp/loki:
+        endpoint: "http://ipiece-loki.monitoring:3100/otlp"
+        tls:
+          insecure: true
+
+    service:
+      pipelines:
+        metrics:
+          receivers: [hostmetrics, kubeletstats]
+          processors: [k8sattributes, batch, resourcedetection]
+          exporters: [prometheusremotewrite]
+        logs:
+          receivers: [filelog]
+          processors: [k8sattributes, batch, resourcedetection]
+          exporters: [otlphttp/loki]
+
+  serviceAccount:
+    create: true
+
+  clusterRole:
+    create: true
+    rules:
+      - apiGroups: [""]
+        resources: ["nodes", "nodes/stats", "services", "endpoints", "pods", "namespaces", "nodes/proxy"]
+        verbs: ["get", "watch", "list"]
+      - apiGroups: ["apps"]
+        resources: ["replicasets"]
+        verbs: ["get", "list", "watch"]
+      - apiGroups: ["extensions"]
+        resources: ["replicasets"]
+        verbs: ["get", "list", "watch"]
+
+
+
+===== FILE: C:\Users\KO\Desktop\ipiece-manifests\system\networking\argocd-ingress.yaml =====
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-ingress
+  namespace: argocd
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internal
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/group.name: common-alb
+    alb.ingress.kubernetes.io/group.order: "10"
+    alb.ingress.kubernetes.io/healthcheck-path: /argocd/healthz
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /argocd
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  number: 80
+
+
+
+===== FILE: C:\Users\KO\Desktop\ipiece-manifests\system\networking\monitoring-ingress.yaml =====
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: monitoring-ingress
+  namespace: monitoring
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internal
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/group.name: common-alb
+    alb.ingress.kubernetes.io/group.order: "20"
+    alb.ingress.kubernetes.io/healthcheck-path: /api/health
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /api/v1/write
+            pathType: Prefix
+            backend:
+              service:
+                name: ipiece-monitoring-kube-pro-prometheus
+                port:
+                  number: 9090
+          - path: /loki/api/v1/push
+            pathType: Prefix
+            backend:
+              service:
+                name: ipiece-monitoring-loki
+                port:
+                  number: 3100
+          - path: /grafana
+            pathType: Prefix
+            backend:
+              service:
+                name: ipiece-monitoring-grafana
+                port:
+                  number: 80
+
+
+

@@ -8,12 +8,3 @@ images:
 - name: ipiece-frontend
   newName: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-frontend
   newTag: 78970ab454704b3b22971420dbc299e75cd764db
-
-patches:
-- patch: |-
-    - op: replace
-      path: /spec/replicas
-      value: 2
-  target:
-    kind: Deployment
-    name: ipiece-frontend
