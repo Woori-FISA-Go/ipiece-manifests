@@ -6,7 +6,7 @@ namespace: default
 images:
 - name: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-server
   newName: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-server
-  newTag: 04b335a
+  newTag: "3893089"
 - name: ipiece-server
   newName: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-server
   newTag: latest
