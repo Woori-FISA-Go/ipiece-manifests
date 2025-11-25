@@ -1,27 +1,20 @@
-﻿apiVersion: argoproj.io/v1alpha1
+apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: ipiece-backend
+  name: ipiece-backend-prod   # 이름 변경
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: https://github.com/Woori-FISA-Go/ipiece-manifests
     targetRevision: develop
-    path: apps/backend/overlays/dev
+    path: apps/backend/overlays/prod  # ✅ 중요: Prod 폴더 바라보기
   destination:
     server: https://kubernetes.default.svc
-    namespace: default
+    namespace: default        # 운영은 default 네임스페이스 사용
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
-      allowEmpty: false
     syncOptions:
     - CreateNamespace=true
-    retry:
-      limit: 5
-      backoff:
-        duration: 5s
-        factor: 2
-        maxDuration: 3m
