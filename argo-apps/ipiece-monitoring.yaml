@@ -1,25 +1,28 @@
-﻿apiVersion: argoproj.io/v1alpha1
-kind: Application
+﻿apiVersion: networking.k8s.io/v1
+kind: Ingress
 metadata:
-  name: ipiece-monitoring
-  namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
+  name: monitoring-ingress
+  namespace: monitoring
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internal
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/group.name: common-alb
+    alb.ingress.kubernetes.io/group.order: "20"
+    # Grafana path 기준으로 헬스체크
+    alb.ingress.kubernetes.io/healthcheck-path: /grafana/
 spec:
-  project: default
-  source:
-    repoURL: https://github.com/Woori-FISA-Go/ipiece-manifests.git
-    targetRevision: develop  # develop 브랜치를 바라보게 설정
-    path: system/monitoring
-    helm:
-      valueFiles:
-        - values.yaml
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: monitoring
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true  # 네임스페이스 없으면 알아서 만듦
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /grafana
+            pathType: Prefix
+            backend:
+              service:
+                # ⚠ 실제 Grafana 서비스 이름은
+                #   kubectl get svc -n monitoring
+                # 로 확인해서 넣어야 함.
+                # 예: ipiece-monitoring-kube-prometheus-stack-grafana
+                name: ipiece-monitoring-grafana
+                port:
+                  number: 80

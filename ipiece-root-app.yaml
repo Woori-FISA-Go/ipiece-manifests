@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ipiece-root
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Woori-FISA-Go/ipiece-manifests.git
+    targetRevision: develop         # 네가 쓰는 브랜치
+    path: argo-apps                 # ✅ 이 폴더 안의 Application YAML들을 자식으로 인식
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd               # Application 리소스 자체가 위치할 네임스페이스
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

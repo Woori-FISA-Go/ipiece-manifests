@@ -4,6 +4,7 @@
 kube-prometheus-stack:
   prometheus:
     prometheusSpec:
+      # OTel remote write 받기
       enableRemoteWriteReceiver: true
       retention: 15d
       storageSpec:
@@ -27,11 +28,16 @@ kube-prometheus-stack:
       enabled: true
       storageClassName: gp3
       size: 10Gi
+
+    # 🔥 Grafana에서 Loki를 기본 데이터소스로 붙이기
     additionalDataSources:
       - name: Loki
         type: loki
-        url: http://ipiece-monitoring-loki:3100/
+        # CHANGED: Loki 서비스 이름을 ipiece-loki 로 고정 (아래 loki-stack 설정과 매칭)
+        url: http://ipiece-loki:3100/
         access: proxy
+
+    # /grafana 서브패스로 노출
     env:
       GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"
@@ -49,6 +55,11 @@ loki-stack:
   loki:
     enabled: true
     isDefault: false
+
+    # CHANGED: Loki 리소스 이름을 ipiece-loki 로 고정
+    # => Service 이름이 ipiece-loki (port 3100) 으로 생김
+    fullnameOverride: ipiece-loki
+
     config:
       auth_enabled: false
       schema_config:
@@ -60,9 +71,13 @@ loki-stack:
             index:
               prefix: index_
               period: 24h
+
       storage_config:
         aws:
-          s3: s3://ap-northeast-2/ipiece-loki-store
+          # CHANGED: 실제 S3 버킷 경로 형태로 수정
+          #   - Region은 아래 region 필드에서 지정
+          #   - 버킷 이름이 ipiece-loki-store 라고 했으니 이렇게 두는게 일반적
+          s3: s3://ipiece-loki-store
           region: ap-northeast-2
 
     extraEnv:
@@ -202,13 +217,21 @@ opentelemetry-collector:
         detectors: [env, system]
 
     exporters:
+      # CHANGED: Prometheus remote write 엔드포인트를
+      #   kube-prometheus-stack가 내부에서 만드는 고정 서비스인
+      #   prometheus-operated 로 연결
+      #
+      # 이 서비스는 kube-prometheus-stack 설치 시 항상 같이 생기고,
+      # remote write receiver도 여기서 열려 있음.
       prometheusremotewrite:
-        endpoint: "http://ipiece-monitoring-kube-pro-prometheus.monitoring:9090/api/v1/write"
+        endpoint: "http://prometheus-operated.monitoring:9090/api/v1/write"
         tls:
           insecure: true
 
+      # CHANGED: Loki 엔드포인트를 우리가 fullnameOverride로 고정한
+      #   ipiece-loki 서비스로 연결
       otlphttp/loki:
-        endpoint: "http://ipiece-monitoring-loki.monitoring:3100/otlp"
+        endpoint: "http://ipiece-loki.monitoring:3100/otlp"
         tls:
           insecure: true
 
