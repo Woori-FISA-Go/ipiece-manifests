@@ -3,28 +3,22 @@ kind: Ingress
 metadata:
   name: ipiece-backend-ingress
   annotations:
-    # ?몃??먯꽌 ?묎렐 媛?ν븳 ALB
     alb.ingress.kubernetes.io/scheme: internet-facing
 
-    # ?뚮뱶 IP濡?吏곸젒 ?꾩넚
     alb.ingress.kubernetes.io/target-type: ip
 
-    # ?꾨줎?몄? 媛숈? ALB瑜?怨듭쑀?섍린 ?꾪븳 洹몃９ ?대쫫
     alb.ingress.kubernetes.io/group.name: ipiece
 
-    # 諛깆뿏???ъ뒪泥댄겕 ?붾뱶?ъ씤??
     alb.ingress.kubernetes.io/healthcheck-path: /api/healthz
 spec:
-  # ALB IngressClass ?ъ슜
   ingressClassName: alb
   rules:
     - http:
         paths:
-          # 釉뚮씪?곗??먯꽌 /api/** 濡??ㅻ뒗 ?붿껌??諛깆뿏?쒕줈 蹂대깂
           - path: /api/
             pathType: Prefix
             backend:
               service:
-                name: ipiece-server  # ??service.yaml ??metadata.name 怨??숈씪
+                name: ipiece-server
                 port:
-                  number: 80         # ??service.yaml ??spec.ports[0].port ? ?숈씪
+                  number: 80
