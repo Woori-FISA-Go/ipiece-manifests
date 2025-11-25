@@ -7,7 +7,7 @@ resources:
 images:
 - name: ipiece-frontend
   newName: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-frontend
-  newTag: 24b67671df1e9322e3a1cf26d84ed54702bbe94a
+  newTag: 07dda96eb05eedc570a6ebb713f955c52318c563
 
 patches:
 - patch: |-
