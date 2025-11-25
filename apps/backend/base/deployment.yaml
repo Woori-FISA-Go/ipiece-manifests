@@ -25,9 +25,12 @@ spec:
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "prod"
+        # ✅ [추가됨] 백엔드 애플리케이션의 기본 경로를 /api로 설정
+        # 이제 백엔드는 모든 요청이 /api로 시작한다고 인식합니다.
+        - name: SERVER_SERVLET_CONTEXT_PATH
+          value: "/api"
         envFrom:
         - secretRef:
-            # ✅ [수정됨 1] CI/CD가 만들어주는 시크릿 이름과 일치시킴
             name: ipiece-backend-env
         resources:
           requests:
@@ -36,18 +39,19 @@ spec:
           limits:
             memory: "2Gi"
             cpu: "1000m"
-        # ✅ [수정됨 2] 헬스체크 경로를 실제 자바 코드(/healthz)에 맞춤
-        # 이게 틀리면 파드가 계속 재부팅됩니다.
+        
+        # ✅ [수정됨] Context Path가 /api로 설정되었으므로, 헬스체크 주소도 /api가 붙어야 함
+        # 기존 /healthz -> /api/healthz 로 변경
         livenessProbe:
           httpGet:
-            path: /healthz
+            path: /api/healthz
             port: 8080
           initialDelaySeconds: 60
           periodSeconds: 10
           failureThreshold: 3
         readinessProbe:
           httpGet:
-            path: /healthz
+            path: /api/healthz
             port: 8080
           initialDelaySeconds: 30
           periodSeconds: 5
