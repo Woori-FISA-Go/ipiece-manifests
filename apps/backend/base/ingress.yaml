@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ipiece-backend-ingress
+  annotations:
+    # 외부에서 접근 가능한 ALB
+    alb.ingress.kubernetes.io/scheme: internet-facing
+
+    # 파드 IP로 직접 전송
+    alb.ingress.kubernetes.io/target-type: ip
+
+    # 프론트와 같은 ALB를 공유하기 위한 그룹 이름
+    alb.ingress.kubernetes.io/group.name: ipiece
+
+    # 백엔드 헬스체크 엔드포인트
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
+spec:
+  # ALB IngressClass 사용
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          # 브라우저에서 /api/** 로 오는 요청을 백엔드로 보냄
+          - path: /api/
+            pathType: Prefix
+            backend:
+              service:
+                name: ipiece-server  # ← service.yaml 의 metadata.name 과 동일
+                port:
+                  number: 80         # ← service.yaml 의 spec.ports[0].port 와 동일

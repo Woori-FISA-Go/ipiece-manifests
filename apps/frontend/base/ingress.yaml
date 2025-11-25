@@ -3,18 +3,19 @@ kind: Ingress
 metadata:
   name: ipiece-frontend-ingress
   annotations:
-    # ⚠️ kubernetes.io/ingress.class annotation 제거 (아래 spec 필드로 대체)
-    
     # 외부 접속 허용
     alb.ingress.kubernetes.io/scheme: internet-facing
-    
-    # 파드 IP로 직접 전송 (Topology Aware Routing과 궁합이 가장 좋음)
+
+    # 파드 IP로 직접 전송
     alb.ingress.kubernetes.io/target-type: ip
-    
+
     # 헬스체크 경로
     alb.ingress.kubernetes.io/healthcheck-path: /
+
+    # ✅ 프론트/백엔드가 같은 ALB를 공유하도록 하는 그룹 이름
+    alb.ingress.kubernetes.io/group.name: ipiece
 spec:
-  # ✅ 최신 표준: 어노테이션 대신 여기서 ALB를 지정합니다.
+  # ALB IngressClass 사용
   ingressClassName: alb
   rules:
     - http:
