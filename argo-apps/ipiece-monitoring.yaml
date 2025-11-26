@@ -12,6 +12,7 @@ spec:
     targetRevision: "feat/#25"
     path: system/monitoring
     helm:
+      skipCrds: true
       valueFiles:
         - values.yaml
   destination:
