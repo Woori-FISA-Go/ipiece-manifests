@@ -14,6 +14,7 @@ spec:
       labels:
         app: ipiece-server
     spec:
+      serviceAccountName: ipiece-backend-sa # S3 접근을 위한 추가
       imagePullSecrets:
       - name: ecr-secret
       containers:
