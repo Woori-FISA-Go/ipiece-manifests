@@ -1,4 +1,6 @@
-﻿apiVersion: v2
+# system/aws-load-balancer-controller/Chart.yaml
+
+apiVersion: v2
 name: ipiece-aws-load-balancer-controller
 description: AWS Load Balancer Controller for ipiece EKS cluster
 type: application
@@ -6,5 +8,5 @@ version: 0.1.0
 
 dependencies:
   - name: aws-load-balancer-controller
-    version: "<LATEST_VERSION>"
+    version: "1.16.0"
     repository: https://aws.github.io/eks-charts
