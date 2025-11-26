@@ -1,12 +1,13 @@
-﻿# ==========================================
-# 1. Prometheus (硫뷀듃由???μ냼 - EBS ?ъ슜)
+# ==========================================
+# 1. Prometheus (메트릭 저장 - EBS 사용)
 # ==========================================
 kube-prometheus-stack:
   prometheus:
     prometheusSpec:
-      # OTel remote write 諛쏄린
+      # OTel remote write 활성화
       enableRemoteWriteReceiver: true
       retention: 15d
+
       storageSpec:
         volumeClaimTemplate:
           spec:
@@ -15,6 +16,7 @@ kube-prometheus-stack:
             resources:
               requests:
                 storage: 50Gi
+
       resources:
         requests:
           memory: 1Gi
@@ -24,20 +26,20 @@ kube-prometheus-stack:
   grafana:
     enabled: true
     adminPassword: "admin"
+
     persistence:
       enabled: true
       storageClassName: gp2
       size: 10Gi
 
-    # ?뵦 Grafana?먯꽌 Loki瑜?湲곕낯 ?곗씠?곗냼?ㅻ줈 遺숈씠湲?
+    # 기본 Grafana에서 Loki 데이터 소스를 자동 설정
     additionalDataSources:
       - name: Loki
         type: loki
-        # CHANGED: Loki ?쒕퉬???대쫫??ipiece-loki 濡?怨좎젙 (?꾨옒 loki-stack ?ㅼ젙怨?留ㅼ묶)
         url: http://ipiece-loki:3100/
         access: proxy
 
-    # /grafana ?쒕툕?⑥뒪濡??몄텧
+    # Grafana를 /grafana 경로에서 서비스
     env:
       GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"
@@ -46,7 +48,7 @@ kube-prometheus-stack:
     enabled: false
 
 # ==========================================
-# 2. Loki (濡쒓렇 ??μ냼 - S3 ?ъ슜)
+# 2. Loki (로그 저장 - S3 사용)
 # ==========================================
 loki-stack:
   promtail:
@@ -56,12 +58,12 @@ loki-stack:
     enabled: true
     isDefault: false
 
-    # CHANGED: Loki 由ъ냼???대쫫??ipiece-loki 濡?怨좎젙
-    # => Service ?대쫫??ipiece-loki (port 3100) ?쇰줈 ?앷?
+    # Loki 서비스명을 ipiece-loki로 고정
     fullnameOverride: ipiece-loki
 
     config:
       auth_enabled: false
+
       schema_config:
         configs:
           - from: 2024-01-01
@@ -74,9 +76,6 @@ loki-stack:
 
       storage_config:
         aws:
-          # CHANGED: ?ㅼ젣 S3 踰꾪궥 寃쎈줈 ?뺥깭濡??섏젙
-          #   - Region? ?꾨옒 region ?꾨뱶?먯꽌 吏??
-          #   - 踰꾪궥 ?대쫫??ipiece-loki-store ?쇨퀬 ?덉쑝???대젃寃??먮뒗寃??쇰컲??
           s3: s3://ipiece-loki-store
           region: ap-northeast-2
 
@@ -101,7 +100,7 @@ loki-stack:
       retention_period: 30d
 
 # ==========================================
-# 3. OTel Collector (EKS ?대? ?섏쭛??
+# 3. OTel Collector (EKS 로그/메트릭 수집)
 # ==========================================
 otel:
   mode: daemonset
@@ -110,7 +109,7 @@ otel:
     repository: otel/opentelemetry-collector-contrib
     tag: "0.91.0"
 
-  # ?섍꼍蹂???ㅼ젙
+  # Pod/Node 메타데이터 환경 변수 설정
   extraEnvs:
     - name: K8S_NODE_NAME
       valueFrom:
@@ -125,7 +124,7 @@ otel:
         fieldRef:
           fieldPath: metadata.namespace
 
-  # 蹂쇰ⅷ 留덉슫??(濡쒓렇 ?섏쭛??
+  # 로그 파일 경로 마운트
   extraVolumes:
     - name: varlog
       hostPath:
@@ -142,6 +141,7 @@ otel:
       mountPath: /var/lib/docker/containers
       readOnly: true
 
+  # OTEL Collector Pipeline 설정
   config:
     receivers:
       hostmetrics:
@@ -194,7 +194,7 @@ otel:
               layout: "%Y-%m-%dT%H:%M:%S.%LZ"
           - type: regex_parser
             id: extract_metadata_from_filepath
-            regex: '^.*\/(?P<namespace>[^_]+)_(?P<pod_name>[^_]+)_(?P<uid>[a-f0-9\-]{36})\/(?P<container_name>[^\._]+)\/(?P<restart_count>\d+)\.log$'
+            regex: '^.*/(?P<namespace>[^_]+)_(?P<pod_name>[^_]+)_(?P<uid>[a-f0-9\-]{36})/(?P<container_name>[^._]+)/(?P<restart_count>\d+)\.log$'
             parse_from: attributes["log.file.path"]
 
       otlp:
@@ -208,7 +208,6 @@ otel:
       batch:
         timeout: 10s
         send_batch_size: 1024
-
       k8sattributes:
         auth_type: "serviceAccount"
         passthrough: false
@@ -219,24 +218,15 @@ otel:
             - k8s.deployment.name
             - k8s.namespace.name
             - k8s.node.name
-
       resourcedetection:
         detectors: [env, system]
 
     exporters:
-      # CHANGED: Prometheus remote write ?붾뱶?ъ씤?몃?
-      #   kube-prometheus-stack媛 ?대??먯꽌 留뚮뱶??怨좎젙 ?쒕퉬?ㅼ씤
-      #   prometheus-operated 濡??곌껐
-      #
-      # ???쒕퉬?ㅻ뒗 kube-prometheus-stack ?ㅼ튂 ????긽 媛숈씠 ?앷린怨?
-      # remote write receiver???ш린???대젮 ?덉쓬.
       prometheusremotewrite:
         endpoint: "http://prometheus-operated.monitoring:9090/api/v1/write"
         tls:
           insecure: true
 
-      # CHANGED: Loki ?붾뱶?ъ씤?몃? ?곕━媛 fullnameOverride濡?怨좎젙??
-      #   ipiece-loki ?쒕퉬?ㅻ줈 ?곌껐
       otlphttp/loki:
         endpoint: "http://ipiece-loki.monitoring:3100/otlp"
         tls:
@@ -260,16 +250,7 @@ otel:
     create: true
     rules:
       - apiGroups: [""]
-        resources:
-          [
-            "nodes",
-            "nodes/stats",
-            "services",
-            "endpoints",
-            "pods",
-            "namespaces",
-            "nodes/proxy",
-          ]
+        resources: ["nodes", "nodes/stats", "services", "endpoints", "pods", "namespaces", "nodes/proxy"]
         verbs: ["get", "watch", "list"]
       - apiGroups: ["apps"]
         resources: ["replicasets"]
@@ -277,4 +258,3 @@ otel:
       - apiGroups: ["extensions"]
         resources: ["replicasets"]
         verbs: ["get", "list", "watch"]
-
