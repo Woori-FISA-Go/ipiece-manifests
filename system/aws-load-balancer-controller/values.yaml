@@ -1,0 +1,10 @@
+﻿aws-load-balancer-controller:
+  clusterName: ipiece-cluster1
+  region: ap-northeast-2
+  vpcId: vpc-087decd9f8cc89873
+
+  serviceAccount:
+    create: true
+    name: aws-load-balancer-controller
+    annotations:
+      eks.amazonaws.com/role-arn: arn:aws:iam::235625001959:role/ipiece-aws-load-balancer-controller-role
