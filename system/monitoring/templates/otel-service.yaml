@@ -1,8 +1,8 @@
+# system/monitoring/templates/otel-service.yaml
 apiVersion: v1
 kind: Service
 metadata:
   name: ipiece-monitoring-otel
-  namespace: { { .Release.Namespace } }
   labels:
     app.kubernetes.io/instance: { { .Release.Name } }
     app.kubernetes.io/name: otel
