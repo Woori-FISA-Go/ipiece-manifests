@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/Woori-FISA-Go/ipiece-manifests.git
-    targetRevision: "feat/#25"
+    targetRevision: "develop"
     path: system/monitoring
     helm:
       skipCrds: true
