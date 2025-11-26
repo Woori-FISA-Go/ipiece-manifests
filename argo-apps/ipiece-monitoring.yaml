@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/Woori-FISA-Go/ipiece-manifests.git
-    targetRevision: 'feat/#25'
+    targetRevision: "feat/#25"
     path: system/monitoring
     helm:
       valueFiles:
@@ -23,3 +23,4 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - ServerSideApply=true
