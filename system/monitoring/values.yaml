@@ -1,16 +1,16 @@
-# ==========================================
-# 1. Prometheus (메트릭 저장소 - EBS 사용)
+﻿# ==========================================
+# 1. Prometheus (硫뷀듃由???μ냼 - EBS ?ъ슜)
 # ==========================================
 kube-prometheus-stack:
   prometheus:
     prometheusSpec:
-      # OTel remote write 받기
+      # OTel remote write 諛쏄린
       enableRemoteWriteReceiver: true
       retention: 15d
       storageSpec:
         volumeClaimTemplate:
           spec:
-            storageClassName: gp3
+            storageClassName: gp2
             accessModes: ["ReadWriteOnce"]
             resources:
               requests:
@@ -26,18 +26,18 @@ kube-prometheus-stack:
     adminPassword: "admin"
     persistence:
       enabled: true
-      storageClassName: gp3
+      storageClassName: gp2
       size: 10Gi
 
-    # 🔥 Grafana에서 Loki를 기본 데이터소스로 붙이기
+    # ?뵦 Grafana?먯꽌 Loki瑜?湲곕낯 ?곗씠?곗냼?ㅻ줈 遺숈씠湲?
     additionalDataSources:
       - name: Loki
         type: loki
-        # CHANGED: Loki 서비스 이름을 ipiece-loki 로 고정 (아래 loki-stack 설정과 매칭)
+        # CHANGED: Loki ?쒕퉬???대쫫??ipiece-loki 濡?怨좎젙 (?꾨옒 loki-stack ?ㅼ젙怨?留ㅼ묶)
         url: http://ipiece-loki:3100/
         access: proxy
 
-    # /grafana 서브패스로 노출
+    # /grafana ?쒕툕?⑥뒪濡??몄텧
     env:
       GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"
@@ -46,7 +46,7 @@ kube-prometheus-stack:
     enabled: false
 
 # ==========================================
-# 2. Loki (로그 저장소 - S3 사용)
+# 2. Loki (濡쒓렇 ??μ냼 - S3 ?ъ슜)
 # ==========================================
 loki-stack:
   promtail:
@@ -56,8 +56,8 @@ loki-stack:
     enabled: true
     isDefault: false
 
-    # CHANGED: Loki 리소스 이름을 ipiece-loki 로 고정
-    # => Service 이름이 ipiece-loki (port 3100) 으로 생김
+    # CHANGED: Loki 由ъ냼???대쫫??ipiece-loki 濡?怨좎젙
+    # => Service ?대쫫??ipiece-loki (port 3100) ?쇰줈 ?앷?
     fullnameOverride: ipiece-loki
 
     config:
@@ -74,9 +74,9 @@ loki-stack:
 
       storage_config:
         aws:
-          # CHANGED: 실제 S3 버킷 경로 형태로 수정
-          #   - Region은 아래 region 필드에서 지정
-          #   - 버킷 이름이 ipiece-loki-store 라고 했으니 이렇게 두는게 일반적
+          # CHANGED: ?ㅼ젣 S3 踰꾪궥 寃쎈줈 ?뺥깭濡??섏젙
+          #   - Region? ?꾨옒 region ?꾨뱶?먯꽌 吏??
+          #   - 踰꾪궥 ?대쫫??ipiece-loki-store ?쇨퀬 ?덉쑝???대젃寃??먮뒗寃??쇰컲??
           s3: s3://ipiece-loki-store
           region: ap-northeast-2
 
@@ -101,7 +101,7 @@ loki-stack:
       retention_period: 30d
 
 # ==========================================
-# 3. OTel Collector (EKS 내부 수집용)
+# 3. OTel Collector (EKS ?대? ?섏쭛??
 # ==========================================
 otel:
   mode: daemonset
@@ -110,7 +110,7 @@ otel:
     repository: otel/opentelemetry-collector-contrib
     tag: "0.91.0"
 
-  # 환경변수 설정
+  # ?섍꼍蹂???ㅼ젙
   extraEnvs:
     - name: K8S_NODE_NAME
       valueFrom:
@@ -125,7 +125,7 @@ otel:
         fieldRef:
           fieldPath: metadata.namespace
 
-  # 볼륨 마운트 (로그 수집용)
+  # 蹂쇰ⅷ 留덉슫??(濡쒓렇 ?섏쭛??
   extraVolumes:
     - name: varlog
       hostPath:
@@ -224,19 +224,19 @@ otel:
         detectors: [env, system]
 
     exporters:
-      # CHANGED: Prometheus remote write 엔드포인트를
-      #   kube-prometheus-stack가 내부에서 만드는 고정 서비스인
-      #   prometheus-operated 로 연결
+      # CHANGED: Prometheus remote write ?붾뱶?ъ씤?몃?
+      #   kube-prometheus-stack媛 ?대??먯꽌 留뚮뱶??怨좎젙 ?쒕퉬?ㅼ씤
+      #   prometheus-operated 濡??곌껐
       #
-      # 이 서비스는 kube-prometheus-stack 설치 시 항상 같이 생기고,
-      # remote write receiver도 여기서 열려 있음.
+      # ???쒕퉬?ㅻ뒗 kube-prometheus-stack ?ㅼ튂 ????긽 媛숈씠 ?앷린怨?
+      # remote write receiver???ш린???대젮 ?덉쓬.
       prometheusremotewrite:
         endpoint: "http://prometheus-operated.monitoring:9090/api/v1/write"
         tls:
           insecure: true
 
-      # CHANGED: Loki 엔드포인트를 우리가 fullnameOverride로 고정한
-      #   ipiece-loki 서비스로 연결
+      # CHANGED: Loki ?붾뱶?ъ씤?몃? ?곕━媛 fullnameOverride濡?怨좎젙??
+      #   ipiece-loki ?쒕퉬?ㅻ줈 ?곌껐
       otlphttp/loki:
         endpoint: "http://ipiece-loki.monitoring:3100/otlp"
         tls:
@@ -277,3 +277,4 @@ otel:
       - apiGroups: ["extensions"]
         resources: ["replicasets"]
         verbs: ["get", "list", "watch"]
+
