@@ -12,7 +12,7 @@ spec:
     targetRevision: "develop"
     path: system/monitoring
     helm:
-      skipCrds: true
+      skipCrds: false
       valueFiles:
         - values.yaml
   destination:
