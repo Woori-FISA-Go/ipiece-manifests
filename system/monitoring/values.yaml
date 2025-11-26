@@ -105,7 +105,7 @@ loki-stack:
 # ==========================================
 otel:
   mode: daemonset
-  
+
   image:
     repository: otel/opentelemetry-collector-contrib
     tag: "0.91.0"
@@ -181,27 +181,34 @@ otel:
                 expr: 'body matches "^[^ Z]+ "'
           - type: regex_parser
             id: parser-containerd
-            regex: '^(?P<time>[^ ^Z]+) (?P<stream>stdout|stderr) (?P<logtag>[^ ]*) ?(?P<log>.*)$'
+            regex: "^(?P<time>[^ ^Z]+) (?P<stream>stdout|stderr) (?P<logtag>[^ ]*) ?(?P<log>.*)$"
             output: extract_metadata_from_filepath
             timestamp:
               parse_from: attributes.time
-              layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+              layout: "%Y-%m-%dT%H:%M:%S.%LZ"
           - type: json_parser
             id: parser-docker
             output: extract_metadata_from_filepath
             timestamp:
               parse_from: attributes.time
-              layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+              layout: "%Y-%m-%dT%H:%M:%S.%LZ"
           - type: regex_parser
             id: extract_metadata_from_filepath
             regex: '^.*\/(?P<namespace>[^_]+)_(?P<pod_name>[^_]+)_(?P<uid>[a-f0-9\-]{36})\/(?P<container_name>[^\._]+)\/(?P<restart_count>\d+)\.log$'
             parse_from: attributes["log.file.path"]
 
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
     processors:
       batch:
         timeout: 10s
         send_batch_size: 1024
-      
+
       k8sattributes:
         auth_type: "serviceAccount"
         passthrough: false
@@ -212,7 +219,7 @@ otel:
             - k8s.deployment.name
             - k8s.namespace.name
             - k8s.node.name
-      
+
       resourcedetection:
         detectors: [env, system]
 
@@ -238,7 +245,7 @@ otel:
     service:
       pipelines:
         metrics:
-          receivers: [hostmetrics, kubeletstats]
+          receivers: [hostmetrics, kubeletstats, otlp]
           processors: [k8sattributes, batch, resourcedetection]
           exporters: [prometheusremotewrite]
         logs:
@@ -253,7 +260,16 @@ otel:
     create: true
     rules:
       - apiGroups: [""]
-        resources: ["nodes", "nodes/stats", "services", "endpoints", "pods", "namespaces", "nodes/proxy"]
+        resources:
+          [
+            "nodes",
+            "nodes/stats",
+            "services",
+            "endpoints",
+            "pods",
+            "namespaces",
+            "nodes/proxy",
+          ]
         verbs: ["get", "watch", "list"]
       - apiGroups: ["apps"]
         resources: ["replicasets"]
