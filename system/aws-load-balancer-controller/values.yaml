@@ -7,4 +7,4 @@
     create: true
     name: aws-load-balancer-controller
     annotations:
-      eks.amazonaws.com/role-arn: arn:aws:iam::235625001959:role/ipiece-aws-load-balancer-controller-role
+      eks.amazonaws.com/role-arn: arn:aws:iam::235625001959:role/aws-load-balancer-controller
