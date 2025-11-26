@@ -1,1 +1,1 @@
-trigger: 2025-11-26T01:38:47Z, image=235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-frontend:4df06f0f6e9bca9bedeb4cb77fb05203067ce7e9-9
+trigger: 2025-11-26T01:52:37Z, image=235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-server:c10dd9b-32
