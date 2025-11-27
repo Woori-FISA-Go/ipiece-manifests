@@ -3,8 +3,13 @@ kind: Service
 metadata:
   name: ipiece-monitoring-otel
   namespace: monitoring
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internal"
+    # (옵션) 특정 서브넷에만 생성하고 싶으면:
+    # service.beta.kubernetes.io/aws-load-balancer-subnets: "subnet-aaa,subnet-bbb"
 spec:
-  type: ClusterIP
+  type: LoadBalancer
   selector:
     app.kubernetes.io/instance: ipiece-monitoring
     app.kubernetes.io/name: otel

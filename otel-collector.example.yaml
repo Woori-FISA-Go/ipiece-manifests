@@ -1,0 +1,41 @@
+receivers:
+  hostmetrics:
+    collection_interval: 10s
+    scrapers:
+      cpu: {}
+      memory: {}
+      disk: {}
+      filesystem: {}
+      network: {}
+      load: {}
+
+  filelog:
+    include:
+      - /var/log/syslog
+      - /var/log/messages
+      - /var/log/*.log
+    start_at: beginning
+    include_file_path: true
+    include_file_name: true
+
+processors:
+  batch:
+    timeout: 5s
+    send_batch_size: 512
+
+exporters:
+  otlphttp:
+    endpoint: "http://internal-ipiece-monitoring-otel-xxxx.ap-northeast-2.elb.amazonaws.com:4318"
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    metrics:
+      receivers: [hostmetrics]
+      processors: [batch]
+      exporters: [otlphttp]
+    logs:
+      receivers: [filelog]
+      processors: [batch]
+      exporters: [otlphttp]

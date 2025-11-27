@@ -239,7 +239,7 @@ otel:
           processors: [k8sattributes, batch, resourcedetection]
           exporters: [prometheusremotewrite]
         logs:
-          receivers: [filelog]
+          receivers: [filelog, otlp]
           processors: [k8sattributes, batch, resourcedetection]
           exporters: [otlphttp/loki]
 
