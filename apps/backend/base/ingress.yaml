@@ -4,16 +4,19 @@ metadata:
   name: ipiece-backend-ingress
   annotations:
     alb.ingress.kubernetes.io/scheme: internet-facing
-
     alb.ingress.kubernetes.io/target-type: ip
-
     alb.ingress.kubernetes.io/group.name: ipiece
-
     alb.ingress.kubernetes.io/healthcheck-path: /api/healthz
+
+    # ✅ [추가 1] Backend도 같은 도메인 사용
+    external-dns.alpha.kubernetes.io/hostname: ipiece.store
+    
 spec:
   ingressClassName: alb
   rules:
-    - http:
+    # ✅ [추가 2] 호스트 명시
+    - host: ipiece.store
+      http:
         paths:
           - path: /api/
             pathType: Prefix
