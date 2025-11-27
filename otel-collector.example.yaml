@@ -25,7 +25,7 @@ processors:
 
 exporters:
   otlphttp:
-    endpoint: "http://internal-ipiece-monitoring-otel-xxxx.ap-northeast-2.elb.amazonaws.com:4318"
+    endpoint: "http://a120bf85a517c4ab6ad42d80cd0c9dfe-ad4cefac356f361b.elb.ap-northeast-2.amazonaws.com:4318"
     tls:
       insecure: true
 
