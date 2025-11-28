@@ -86,8 +86,6 @@ loki-stack:
               period: 24h
 
       # Loki 2.x + boltdb-shipper + AWS S3 설정
-      # - 일반적으로 s3: s3://<bucket-name>
-      # - region은 별도 필드로 지정
       storage_config:
         aws:
           s3: s3://ipiece-loki-store
@@ -159,7 +157,7 @@ otel:
   # OTEL Collector Pipeline 설정
   config:
     receivers:
-      # EKS 노드 메트릭
+      # EKS 노드 메트릭 (활성화)
       hostmetrics:
         collection_interval: 10s
         scrapers:
@@ -187,20 +185,27 @@ otel:
         # 자기 자신(otel) 로그는 제외해서 루프 방지
         exclude:
           - /var/log/pods/monitoring_ipiece-monitoring-otel-agent_*/*.log
-        start_at: beginning
+        start_at: end
         include_file_path: true
         include_file_name: false
 
-        # ✅ router/복잡한 파서 제거 (옵션 A)
-        #    → 모든 로그를 일단 Loki로 보내고, 파일 경로에서만 메타데이터 추출
+        # ✅ [수정 1] 파싱 로직 강화 (시간 추출 + 메타데이터 추출)
         operators:
-          # 1) 파일 경로에서 namespace/pod/uid 등 추출
+          # 1) 시간 파싱 (Timestamp 1970년 문제 해결)
+          - id: parser-cri
+            type: regex_parser
+            regex: '^(?P<time>[^ ]+) (?P<stream>stdout|stderr) (?P<logtag>[^ ]*) ?(?P<log>.*)$'
+            timestamp:
+              parse_from: attributes.time
+              layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+
+          # 2) 파일 경로에서 메타데이터 추출
           - id: extract_metadata_from_filepath
             type: regex_parser
             parse_from: attributes["log.file.path"]
             regex: '^.*/(?P<namespace>[^_]+)_(?P<pod_name>.+)_(?P<pod_uid>[a-f0-9\-]{36})/(?P<container_name>.+)/(?P<restart_count>\d+)\.log$'
 
-          # 2) 추출한 속성을 k8s.* 표준 리소스 속성으로 이동
+          # 3) 추출한 속성을 k8s.* 표준 리소스 속성으로 이동
           - id: move-namespace
             type: move
             from: attributes["namespace"]
@@ -225,6 +230,12 @@ otel:
             type: move
             from: attributes["restart_count"]
             to: resource["k8s.container.restart_count"]
+          
+          # 4) 로그 본문 정리 (불필요한 메타데이터 제거)
+          - id: clean-up-body
+            type: move
+            from: attributes["log"]
+            to: body
 
       # OTLP (EKS 내부 앱 + 온프레 OTel 모두 여기로 전송)
       otlp:
@@ -234,10 +245,11 @@ otel:
           http:
             endpoint: 0.0.0.0:4318
 
+    # ✅ [수정 2] 잘못된 프로세서(attributes/loki_labels 등) 제거하고 표준 설정만 유지
     processors:
       batch:
-        timeout: 10s
-        send_batch_size: 1024
+        timeout: 5s
+        send_batch_size: 512
 
       # Pod 라벨 붙이기
       k8sattributes:
@@ -270,8 +282,11 @@ otel:
         endpoint: "http://ipiece-loki.monitoring:3100/loki/api/v1/push"
         tls:
           insecure: true
+        # 🔥 [수정 3] 리소스 속성을 Loki 라벨로 자동 변환 (이게 라벨 보이게 하는 핵심!)
+        resource_to_telemetry_conversion:
+          enabled: true
 
-      # 디버깅용 – 에이전트가 어떤 로그 레코드를 만들었는지 stdout에 찍기
+      # 디버깅용 로그
       debug/logs:
         verbosity: detailed
 
@@ -286,6 +301,7 @@ otel:
         # ✅ EKS 파드 로그 + OTLP 로그 → Loki
         logs:
           receivers: [filelog, otlp]
+          # 🔥 [수정 4] 존재하지 않는 커스텀 프로세서 제거
           processors: [k8sattributes, batch, resourcedetection]
           exporters: [loki, debug/logs]
 
