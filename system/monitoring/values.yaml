@@ -228,7 +228,7 @@ otel:
           insecure: true
 
       otlphttp/loki:
-        endpoint: "http://ipiece-loki.monitoring:3100/otlp"
+        endpoint: "http://ipiece-loki.monitoring:3100/loki/api/v1/push"
         tls:
           insecure: true
 
