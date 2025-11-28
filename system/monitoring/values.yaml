@@ -194,16 +194,37 @@ otel:
         # ✅ router/복잡한 파서 제거 (옵션 A)
         #    → 모든 로그를 일단 Loki로 보내고, 파일 경로에서만 메타데이터 추출
         operators:
+          # 1) 파일 경로에서 namespace/pod/uid 등 추출
           - id: extract_metadata_from_filepath
             type: regex_parser
             parse_from: attributes["log.file.path"]
             regex: '^.*/(?P<namespace>[^_]+)_(?P<pod_name>.+)_(?P<pod_uid>[a-f0-9\-]{36})/(?P<container_name>.+)/(?P<restart_count>\d+)\.log$'
 
-          - { id: move-namespace,       type: move, from: attributes["namespace"],       to: resource["k8s.namespace.name"] }
-          - { id: move-pod-name,        type: move, from: attributes["pod_name"],        to: resource["k8s.pod.name"] }
-          - { id: move-pod-uid,         type: move, from: attributes["pod_uid"],         to: resource["k8s.pod.uid"] }
-          - { id: move-container-name,  type: move, from: attributes["container_name"],  to: resource["k8s.container.name"] }
-          - { id: move-restart-count,   type: move, from: attributes["restart_count"],   to: resource["k8s.container.restart_count"] }
+          # 2) 추출한 속성을 k8s.* 표준 리소스 속성으로 이동
+          - id: move-namespace
+            type: move
+            from: attributes["namespace"]
+            to: resource["k8s.namespace.name"]
+
+          - id: move-pod-name
+            type: move
+            from: attributes["pod_name"]
+            to: resource["k8s.pod.name"]
+
+          - id: move-pod-uid
+            type: move
+            from: attributes["pod_uid"]
+            to: resource["k8s.pod.uid"]
+
+          - id: move-container-name
+            type: move
+            from: attributes["container_name"]
+            to: resource["k8s.container.name"]
+
+          - id: move-restart-count
+            type: move
+            from: attributes["restart_count"]
+            to: resource["k8s.container.restart_count"]
 
       # OTLP (EKS 내부 앱 + 온프레 OTel 모두 여기로 전송)
       otlp:
