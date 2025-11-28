@@ -201,9 +201,11 @@ otel:
             timestamp:
               parse_from: attributes.time
               layout: "%Y-%m-%dT%H:%M:%S.%LZ"
+
+          # 🔥 수정: 파일 경로에서 바로 k8s.* 속성으로 추출
           - type: regex_parser
             id: extract_metadata_from_filepath
-            regex: '^.*/(?P<namespace>[^_]+)_(?P<pod_name>[^_]+)_(?P<uid>[a-f0-9\-]{36})/(?P<container_name>[^._]+)/(?P<restart_count>\d+)\.log$'
+            regex: '^.*/(?P<k8s.namespace.name>[^_]+)_(?P<k8s.pod.name>[^_]+)_(?P<k8s.pod.uid>[a-f0-9\-]{36})/(?P<k8s.container.name>[^._]+)/(?P<k8s.container.restart_count>\d+)\.log$'
             parse_from: attributes["log.file.path"]
 
       otlp:
@@ -217,6 +219,8 @@ otel:
       batch:
         timeout: 10s
         send_batch_size: 1024
+
+      # 🔥 수정: logs에서 Pod를 어떻게 찾을지 pod_association 추가
       k8sattributes:
         auth_type: "serviceAccount"
         passthrough: false
@@ -227,6 +231,11 @@ otel:
             - k8s.deployment.name
             - k8s.namespace.name
             - k8s.node.name
+        pod_association:
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.uid
+
       resourcedetection:
         detectors: [env, system]
 
@@ -242,10 +251,6 @@ otel:
         endpoint: "http://ipiece-loki.monitoring:3100/loki/api/v1/push"
         tls:
           insecure: true
-        # (옵션) 기본 라벨 제어 – 일단 심플하게 두고, 나중에 튜닝해도 됨
-        # default_labels_enabled:
-        #   exporter: false
-        #   job: true
 
       # 디버깅용 – 에이전트가 어떤 로그 레코드를 만들었는지 stdout에 찍기
       debug/logs:
