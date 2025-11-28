@@ -158,21 +158,14 @@ otel:
       hostmetrics:
         collection_interval: 10s
         scrapers:
-          cpu: {}
-          memory: {}
-          disk: {}
-          filesystem: {}
-          network: {}
-          load: {}
+          cpu: {}, memory: {}, disk: {}, filesystem: {}, network: {}, load: {}
 
       kubeletstats:
         auth_type: "serviceAccount"
         endpoint: "${env:K8S_NODE_NAME}:10250"
         insecure_skip_verify: true
         collection_interval: 10s
-        metric_groups:
-          - node
-          - pod
+        metric_groups: [node, pod]
 
       filelog:
         include:
@@ -183,6 +176,7 @@ otel:
         include_file_path: true
         include_file_name: false
         operators:
+          # 1. 컨테이너 런타임별 로그 파싱 (CRI-O / Docker)
           - type: router
             id: get-format
             routes:
@@ -190,6 +184,7 @@ otel:
                 expr: 'body matches "^\\{"'
               - output: parser-containerd
                 expr: 'body matches "^[^ Z]+ "'
+          
           - type: regex_parser
             id: parser-containerd
             regex: "^(?P<time>[^ ^Z]+) (?P<stream>stdout|stderr) (?P<logtag>[^ ]*) ?(?P<log>.*)$"
@@ -197,6 +192,7 @@ otel:
             timestamp:
               parse_from: attributes.time
               layout: "%Y-%m-%dT%H:%M:%S.%LZ"
+              
           - type: json_parser
             id: parser-docker
             output: extract_metadata_from_filepath
@@ -204,14 +200,15 @@ otel:
               parse_from: attributes.time
               layout: "%Y-%m-%dT%H:%M:%S.%LZ"
 
-          # [수정됨] Regex 이름 규칙 오류 수정 (점 제거)
+          # 2. 파일 경로에서 메타데이터 추출 (Regex 수정됨: 좀 더 유연하고 안전하게)
+          # 점(.)이 들어간 변수명 금지 / [^_]+ 대신 .+ 사용하여 특수문자 대응
           - type: regex_parser
             id: extract_metadata_from_filepath
-            regex: '^.*/(?P<namespace>[^_]+)_(?P<pod_name>[^_]+)_(?P<pod_uid>[a-f0-9\-]{36})/(?P<container_name>[^._]+)/(?P<restart_count>\d+)\.log$'
+            regex: '^.*/(?P<namespace>[^_]+)_(?P<pod_name>.+)_(?P<pod_uid>[a-f0-9\-]{36})/(?P<container_name>.+)/(?P<restart_count>\d+)\.log$'
             parse_from: attributes["log.file.path"]
-          
-          # [추가됨] 추출한 임시 변수를 표준 메타데이터로 변환 (Move)
-          # 이렇게 해야 k8sattributes 프로세서가 이 값을 인식합니다.
+
+          # 3. 추출한 메타데이터를 표준 리소스 속성으로 이동 (Move)
+          # k8sattributes 프로세서가 이 값들을 사용합니다.
           - type: move
             from: attributes.namespace
             to: resource["k8s.namespace.name"]
@@ -227,17 +224,15 @@ otel:
 
       otlp:
         protocols:
-          grpc:
-            endpoint: 0.0.0.0:4317
-          http:
-            endpoint: 0.0.0.0:4318
+          grpc: { endpoint: 0.0.0.0:4317 }
+          http: { endpoint: 0.0.0.0:4318 }
 
     processors:
       batch:
-        timeout: 10s
-        send_batch_size: 1024
+        timeout: 5s
+        send_batch_size: 512
 
-      # logs에서 Pod를 어떻게 찾을지 pod_association 추가
+      # 4. k8sattributes로 추가 메타데이터 보강 (Deployment 이름, Node 이름 등)
       k8sattributes:
         auth_type: "serviceAccount"
         passthrough: false
@@ -257,19 +252,20 @@ otel:
         detectors: [env, system]
 
     exporters:
-      # 메트릭 → Prometheus
+      # 메트릭 → Prometheus Remote Write
       prometheusremotewrite:
         endpoint: "http://prometheus-operated.monitoring:9090/api/v1/write"
         tls:
           insecure: true
 
-      # 로그 → Loki (Loki 2.x 는 /loki/api/v1/push 사용)
+      # 로그 → Loki (Loki 2.x 호환 방식: push API 사용)
+      # otlphttp/loki 대신 loki exporter를 씁니다.
       loki:
         endpoint: "http://ipiece-loki.monitoring:3100/loki/api/v1/push"
         tls:
           insecure: true
 
-      # 디버깅용 – 에이전트가 어떤 로그 레코드를 만들었는지 stdout에 찍기
+      # 디버깅용
       debug/logs:
         verbosity: detailed
 
