@@ -231,15 +231,25 @@ otel:
         detectors: [env, system]
 
     exporters:
+      # 메트릭 → Prometheus
       prometheusremotewrite:
         endpoint: "http://prometheus-operated.monitoring:9090/api/v1/write"
         tls:
           insecure: true
 
-      otlphttp/loki:
-        endpoint: "http://ipiece-loki.monitoring:3100/otlp"
+      # 로그 → Loki (Loki 2.x 는 /loki/api/v1/push 사용)
+      loki:
+        endpoint: "http://ipiece-loki.monitoring:3100/loki/api/v1/push"
         tls:
           insecure: true
+        # (옵션) 기본 라벨 제어 – 일단 심플하게 두고, 나중에 튜닝해도 됨
+        # default_labels_enabled:
+        #   exporter: false
+        #   job: true
+
+      # 디버깅용 – 에이전트가 어떤 로그 레코드를 만들었는지 stdout에 찍기
+      debug/logs:
+        verbosity: detailed
 
     service:
       pipelines:
@@ -247,10 +257,11 @@ otel:
           receivers: [hostmetrics, kubeletstats, otlp]
           processors: [k8sattributes, batch, resourcedetection]
           exporters: [prometheusremotewrite]
+
         logs:
           receivers: [filelog, otlp]
           processors: [k8sattributes, batch, resourcedetection]
-          exporters: [otlphttp/loki]
+          exporters: [loki, debug/logs]
 
   serviceAccount:
     create: true

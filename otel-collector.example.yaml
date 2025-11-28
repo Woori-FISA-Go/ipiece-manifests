@@ -14,18 +14,35 @@ receivers:
       - /var/log/syslog
       - /var/log/messages
       - /var/log/*.log
-    start_at: beginning
+    exclude:
+      - /var/log/*.gz
+      - /var/log/*.zip
+      - /var/log/*.tar
+      - /var/log/*.1
+    start_at: end
     include_file_path: true
     include_file_name: true
 
 processors:
+  resource:
+    attributes:
+      - key: service.name
+        action: upsert
+        value: ${env:HOSTNAME}
+      - key: service.instance.id
+        action: upsert
+        value: ${env:HOSTNAME}
+      - key: host_name
+        action: upsert
+        value: ${env:HOSTNAME}
+
   batch:
     timeout: 5s
     send_batch_size: 512
 
 exporters:
   otlphttp:
-    endpoint: "http://a120bf85a517c4ab6ad42d80cd0c9dfe-ad4cefac356f361b.elb.ap-northeast-2.amazonaws.com:4318"
+    endpoint: "http://k8s-monitori-ipiecemo-bc1bd31ce0-4869417592d8547d.elb.ap-northeast-2.amazonaws.com:4318"
     tls:
       insecure: true
 
@@ -33,9 +50,10 @@ service:
   pipelines:
     metrics:
       receivers: [hostmetrics]
-      processors: [batch]
+      processors: [resource, batch]
       exporters: [otlphttp]
+
     logs:
       receivers: [filelog]
-      processors: [batch]
+      processors: [resource, batch]
       exporters: [otlphttp]
