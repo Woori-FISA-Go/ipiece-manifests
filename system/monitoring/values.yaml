@@ -6,10 +6,8 @@
 kube-prometheus-stack:
   prometheus:
     prometheusSpec:
-      # OTel remote write 활성화 (EKS + 온프레 메트릭 모두 수신)
       enableRemoteWriteReceiver: true
       retention: 15d
-
       storageSpec:
         volumeClaimTemplate:
           spec:
@@ -18,7 +16,6 @@ kube-prometheus-stack:
             resources:
               requests:
                 storage: 50Gi
-
       resources:
         requests:
           memory: 1Gi
@@ -28,7 +25,6 @@ kube-prometheus-stack:
   grafana:
     enabled: true
     adminPassword: "admin"
-
     grafana.ini:
       security:
         allow_embedding: true
@@ -37,20 +33,15 @@ kube-prometheus-stack:
       auth.anonymous:
         enabled: true
         org_role: Viewer
-
     persistence:
       enabled: true
       storageClassName: gp2
       size: 10Gi
-
-    # 기본 Grafana에서 Loki 데이터 소스를 자동 설정
     additionalDataSources:
       - name: Loki
         type: loki
         url: http://ipiece-loki:3100/
         access: proxy
-
-    # Grafana를 /grafana 경로에서 서비스
     env:
       GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"
@@ -64,17 +55,12 @@ kube-prometheus-stack:
 loki-stack:
   promtail:
     enabled: false
-
   loki:
     enabled: true
     isDefault: false
-
-    # Loki 서비스명을 ipiece-loki로 고정
     fullnameOverride: ipiece-loki
-
     config:
       auth_enabled: false
-
       schema_config:
         configs:
           - from: 2024-01-01
@@ -84,13 +70,10 @@ loki-stack:
             index:
               prefix: index_
               period: 24h
-
-      # Loki 2.x + boltdb-shipper + AWS S3 설정
       storage_config:
         aws:
           s3: s3://ipiece-loki-store
           region: ap-northeast-2
-
     extraEnv:
       - name: AWS_ACCESS_KEY_ID
         valueFrom:
@@ -102,12 +85,10 @@ loki-stack:
           secretKeyRef:
             name: loki-s3-secret
             key: S3_AWS_SECRET_ACCESS_KEY
-
     compactor:
       working_directory: /data/loki/boltdb-shipper-compactor
       shared_store: s3
       retention_enabled: true
-
     limits_config:
       retention_period: 30d
 
@@ -115,36 +96,24 @@ loki-stack:
 # 3. OTel Collector (EKS 로그/메트릭 + 온프레 OTLP 수집)
 # ==========================================
 otel:
-  # DaemonSet 모드 → 각 노드에서 로그/메트릭 수집
   mode: daemonset
-
   image:
     repository: otel/opentelemetry-collector-contrib
     tag: "0.91.0"
 
-  # Pod/Node 메타데이터 환경 변수 설정
   extraEnvs:
     - name: K8S_NODE_NAME
-      valueFrom:
-        fieldRef:
-          fieldPath: spec.nodeName
+      valueFrom: { fieldRef: { fieldPath: spec.nodeName } }
     - name: K8S_POD_NAME
-      valueFrom:
-        fieldRef:
-          fieldPath: metadata.name
+      valueFrom: { fieldRef: { fieldPath: metadata.name } }
     - name: K8S_NAMESPACE
-      valueFrom:
-        fieldRef:
-          fieldPath: metadata.namespace
+      valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
 
-  # 로그 파일 경로 마운트
   extraVolumes:
     - name: varlog
-      hostPath:
-        path: /var/log
+      hostPath: { path: /var/log }
     - name: varlibdockercontainers
-      hostPath:
-        path: /var/lib/docker/containers
+      hostPath: { path: /var/lib/docker/containers }
 
   extraVolumeMounts:
     - name: varlog
@@ -154,44 +123,31 @@ otel:
       mountPath: /var/lib/docker/containers
       readOnly: true
 
-  # OTEL Collector Pipeline 설정
   config:
     receivers:
-      # EKS 노드 메트릭 (활성화)
+      # ✅ [복구] EKS 노드 메트릭 수집 (CPU/Memory)
       hostmetrics:
         collection_interval: 10s
-        scrapers:
-          cpu: {}
-          memory: {}
-          disk: {}
-          filesystem: {}
-          network: {}
-          load: {}
+        scrapers: { cpu: {}, memory: {}, disk: {}, filesystem: {}, network: {}, load: {} }
 
-      # kubelet / 노드/파드 단위 메트릭
       kubeletstats:
         auth_type: "serviceAccount"
         endpoint: "${env:K8S_NODE_NAME}:10250"
         insecure_skip_verify: true
         collection_interval: 10s
-        metric_groups:
-          - node
-          - pod
+        metric_groups: [node, pod]
 
-      # EKS 파드 로그 수집
       filelog:
         include:
           - /var/log/pods/*/*/*.log
-        # 자기 자신(otel) 로그는 제외해서 루프 방지
         exclude:
           - /var/log/pods/monitoring_ipiece-monitoring-otel-agent_*/*.log
         start_at: end
         include_file_path: true
         include_file_name: false
 
-        # ✅ [수정 1] 파싱 로직 강화 (시간 추출 + 메타데이터 추출)
         operators:
-          # 1) 시간 파싱 (Timestamp 1970년 문제 해결)
+          # 1. 시간 파싱 (Timestamp 문제 해결)
           - id: parser-cri
             type: regex_parser
             regex: '^(?P<time>[^ ]+) (?P<stream>stdout|stderr) (?P<logtag>[^ ]*) ?(?P<log>.*)$'
@@ -199,110 +155,95 @@ otel:
               parse_from: attributes.time
               layout: '%Y-%m-%dT%H:%M:%S.%LZ'
 
-          # 2) 파일 경로에서 메타데이터 추출
+          # 2. 메타데이터 추출
           - id: extract_metadata_from_filepath
             type: regex_parser
             parse_from: attributes["log.file.path"]
             regex: '^.*/(?P<namespace>[^_]+)_(?P<pod_name>.+)_(?P<pod_uid>[a-f0-9\-]{36})/(?P<container_name>.+)/(?P<restart_count>\d+)\.log$'
 
-          # 3) 추출한 속성을 k8s.* 표준 리소스 속성으로 이동
+          # 3. 메타데이터 이동
           - id: move-namespace
             type: move
             from: attributes["namespace"]
             to: resource["k8s.namespace.name"]
-
           - id: move-pod-name
             type: move
             from: attributes["pod_name"]
             to: resource["k8s.pod.name"]
-
           - id: move-pod-uid
             type: move
             from: attributes["pod_uid"]
             to: resource["k8s.pod.uid"]
-
           - id: move-container-name
             type: move
             from: attributes["container_name"]
             to: resource["k8s.container.name"]
-
           - id: move-restart-count
             type: move
             from: attributes["restart_count"]
             to: resource["k8s.container.restart_count"]
           
-          # 4) 로그 본문 정리 (불필요한 메타데이터 제거)
+          # 4. 로그 본문 정리
           - id: clean-up-body
             type: move
             from: attributes["log"]
             to: body
 
-      # OTLP (EKS 내부 앱 + 온프레 OTel 모두 여기로 전송)
       otlp:
         protocols:
-          grpc:
-            endpoint: 0.0.0.0:4317
-          http:
-            endpoint: 0.0.0.0:4318
+          grpc: { endpoint: 0.0.0.0:4317 }
+          http: { endpoint: 0.0.0.0:4318 }
 
-    # ✅ [수정 2] 잘못된 프로세서(attributes/loki_labels 등) 제거하고 표준 설정만 유지
     processors:
       batch:
         timeout: 5s
         send_batch_size: 512
 
-      # Pod 라벨 붙이기
       k8sattributes:
         auth_type: "serviceAccount"
         passthrough: false
         extract:
-          metadata:
-            - k8s.pod.name
-            - k8s.pod.uid
-            - k8s.deployment.name
-            - k8s.namespace.name
-            - k8s.node.name
+          metadata: [k8s.pod.name, k8s.pod.uid, k8s.deployment.name, k8s.namespace.name, k8s.node.name]
         pod_association:
           - sources:
               - from: resource_attribute
                 name: k8s.pod.uid
-
+      
       resourcedetection:
         detectors: [env, system]
 
+      # 🔥 [수정됨] Resource Processor 추가 (라벨링 해결책)
+      # 에러가 났던 resource_to_telemetry_conversion 대신
+      # loki.resource.labels 속성을 직접 심어주는 방식입니다.
+      resource:
+        attributes:
+          - key: loki.resource.labels
+            action: insert
+            value: k8s.namespace.name, k8s.pod.name, k8s.container.name, k8s.node.name
+
     exporters:
-      # 메트릭 → Prometheus Remote Write
       prometheusremotewrite:
         endpoint: "http://prometheus-operated.monitoring:9090/api/v1/write"
-        tls:
-          insecure: true
+        tls: { insecure: true }
 
-      # 로그 → Loki (Loki 2.x Push API)
       loki:
         endpoint: "http://ipiece-loki.monitoring:3100/loki/api/v1/push"
-        tls:
-          insecure: true
-        # 🔥 [수정 3] 리소스 속성을 Loki 라벨로 자동 변환 (이게 라벨 보이게 하는 핵심!)
-        resource_to_telemetry_conversion:
-          enabled: true
+        tls: { insecure: true }
+        # ❌ 삭제됨: resource_to_telemetry_conversion (CrashLoopBackOff 원인)
 
-      # 디버깅용 로그
       debug/logs:
         verbosity: detailed
 
     service:
       pipelines:
-        # ✅ EKS 메트릭 + 온프레/앱 OTLP 메트릭 → Prometheus
         metrics:
           receivers: [hostmetrics, kubeletstats, otlp]
           processors: [k8sattributes, batch, resourcedetection]
           exporters: [prometheusremotewrite]
-
-        # ✅ EKS 파드 로그 + OTLP 로그 → Loki
         logs:
           receivers: [filelog, otlp]
-          # 🔥 [수정 4] 존재하지 않는 커스텀 프로세서 제거
-          processors: [k8sattributes, batch, resourcedetection]
+          # 🔥 [수정됨] resource 프로세서 추가 (k8sattributes 뒤에 위치)
+          processors: [k8sattributes, resource, batch, resourcedetection]
           exporters: [loki, debug/logs]
 
   serviceAccount:
