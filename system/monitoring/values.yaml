@@ -221,7 +221,8 @@ otel:
         send_batch_size: 512
 
       k8sattributes:
-        auth_type: "ServiceAccount"
+        # 🔥 여기! 대소문자 정확히 "serviceAccount" 여야 함
+        auth_type: "serviceAccount"
         passthrough: false
         extract:
           metadata:
@@ -255,7 +256,6 @@ otel:
         endpoint: "http://ipiece-loki.monitoring:3100/loki/api/v1/push"
         tls:
           insecure: true
-        # resource_to_telemetry_conversion 는 버전 이슈 때문에 제거
 
       debug/logs:
         verbosity: detailed
@@ -279,6 +279,7 @@ otel:
     create: true
     rules:
       - apiGroups: [""]
+
         resources: ["nodes", "nodes/stats", "services", "endpoints", "pods", "namespaces", "nodes/proxy"]
         verbs: ["get", "watch", "list"]
       - apiGroups: ["apps"]
