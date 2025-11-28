@@ -30,6 +30,8 @@ kube-prometheus-stack:
     grafana.ini:
       security:
         allow_embedding: true
+      public_dashboards:
+        enabled: true
       auth.anonymous:
         enabled: true
         org_role: Viewer
