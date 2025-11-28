@@ -59,7 +59,7 @@ kube-prometheus-stack:
     enabled: false
 
 # ==========================================
-# 2. Loki (로그 저장 - S3 사용)
+# 2. Loki (로그 저장 - S3 사용, Loki 2.x 기준)
 # ==========================================
 loki-stack:
   promtail:
@@ -85,9 +85,11 @@ loki-stack:
               prefix: index_
               period: 24h
 
+      # ⚠ Loki 2.x + boltdb-shipper + AWS S3 설정
+      #   - s3 URL 형식: s3://<region>/<bucket>
       storage_config:
         aws:
-          s3: s3://ipiece-loki-store
+          s3: s3://ap-northeast-2/ipiece-loki-store
           region: ap-northeast-2
 
     extraEnv:
@@ -158,81 +160,101 @@ otel:
       hostmetrics:
         collection_interval: 10s
         scrapers:
-          cpu: {}, memory: {}, disk: {}, filesystem: {}, network: {}, load: {}
+          cpu: {}
+          memory: {}
+          disk: {}
+          filesystem: {}
+          network: {}
+          load: {}
 
       kubeletstats:
         auth_type: "serviceAccount"
         endpoint: "${env:K8S_NODE_NAME}:10250"
         insecure_skip_verify: true
         collection_interval: 10s
-        metric_groups: [node, pod]
+        metric_groups:
+          - node
+          - pod
 
       filelog:
         include:
           - /var/log/pods/*/*/*.log
+        # 자기 자신(otel) 로그는 제외해서 루프 방지
         exclude:
-          - /var/log/pods/monitoring_*/*/*.log
+          - /var/log/pods/monitoring_ipiece-monitoring-otel-agent_*/*.log
         start_at: beginning
         include_file_path: true
         include_file_name: false
+
         operators:
-          # 1. 컨테이너 런타임별 로그 파싱 (CRI-O / Docker)
-          - type: router
-            id: get-format
+          # 1) 어떤 포맷인지 먼저 라우팅
+          - id: get-format
+            type: router
             routes:
               - output: parser-docker
                 expr: 'body matches "^\\{"'
               - output: parser-containerd
                 expr: 'body matches "^[^ Z]+ "'
-          
-          - type: regex_parser
-            id: parser-containerd
+
+          # 2) containerd / cri-o 같이 text 형태
+          - id: parser-containerd
+            type: regex_parser
             regex: "^(?P<time>[^ ^Z]+) (?P<stream>stdout|stderr) (?P<logtag>[^ ]*) ?(?P<log>.*)$"
             output: extract_metadata_from_filepath
             timestamp:
               parse_from: attributes.time
               layout: "%Y-%m-%dT%H:%M:%S.%LZ"
-              
-          - type: json_parser
-            id: parser-docker
+
+          # 3) docker json 로그
+          - id: parser-docker
+            type: json_parser
             output: extract_metadata_from_filepath
             timestamp:
               parse_from: attributes.time
               layout: "%Y-%m-%dT%H:%M:%S.%LZ"
 
-          # 2. 파일 경로에서 메타데이터 추출 (Regex 수정됨: 좀 더 유연하고 안전하게)
-          # 점(.)이 들어간 변수명 금지 / [^_]+ 대신 .+ 사용하여 특수문자 대응
-          - type: regex_parser
-            id: extract_metadata_from_filepath
-            regex: '^.*/(?P<namespace>[^_]+)_(?P<pod_name>.+)_(?P<pod_uid>[a-f0-9\-]{36})/(?P<container_name>.+)/(?P<restart_count>\d+)\.log$'
+          # 4) 파일 경로에서 namespace/pod/uid 등 추출
+          #    (pod_name, container_name 은 . / - / _ 등 허용하려고 .+ 로 완화)
+          - id: extract_metadata_from_filepath
+            type: regex_parser
             parse_from: attributes["log.file.path"]
+            regex: '^.*/(?P<namespace>[^_]+)_(?P<pod_name>.+)_(?P<pod_uid>[a-f0-9\-]{36})/(?P<container_name>.+)/(?P<restart_count>\d+)\.log$'
 
-          # 3. 추출한 메타데이터를 표준 리소스 속성으로 이동 (Move)
-          # k8sattributes 프로세서가 이 값들을 사용합니다.
-          - type: move
-            from: attributes.namespace
+          # 5) 추출한 속성을 k8s.* 표준 리소스 속성으로 이동
+          - id: move-namespace
+            type: move
+            from: attributes["namespace"]
             to: resource["k8s.namespace.name"]
-          - type: move
-            from: attributes.pod_name
+          - id: move-pod-name
+            type: move
+            from: attributes["pod_name"]
             to: resource["k8s.pod.name"]
-          - type: move
-            from: attributes.pod_uid
+          - id: move-pod-uid
+            type: move
+            from: attributes["pod_uid"]
             to: resource["k8s.pod.uid"]
-          - type: move
-            from: attributes.container_name
+          - id: move-container-name
+            type: move
+            from: attributes["container_name"]
             to: resource["k8s.container.name"]
+          - id: move-restart-count
+            type: move
+            from: attributes["restart_count"]
+            to: resource["k8s.container.restart_count"]
 
       otlp:
         protocols:
-          grpc: { endpoint: 0.0.0.0:4317 }
-          http: { endpoint: 0.0.0.0:4318 }
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
 
     processors:
       batch:
-        timeout: 5s
-        send_batch_size: 512
+        timeout: 10s
+        send_batch_size: 1024
 
-      # 4. k8sattributes로 추가 메타데이터 보강 (Deployment 이름, Node 이름 등)
+      # logs에서 Pod를 어떻게 찾을지 pod_association 추가
       k8sattributes:
         auth_type: "serviceAccount"
         passthrough: false
@@ -252,20 +274,19 @@ otel:
         detectors: [env, system]
 
     exporters:
-      # 메트릭 → Prometheus Remote Write
+      # 메트릭 → Prometheus
       prometheusremotewrite:
         endpoint: "http://prometheus-operated.monitoring:9090/api/v1/write"
         tls:
           insecure: true
 
-      # 로그 → Loki (Loki 2.x 호환 방식: push API 사용)
-      # otlphttp/loki 대신 loki exporter를 씁니다.
+      # 로그 → Loki (Loki 2.x: OTLP 엔드포인트 말고 Push API 사용)
       loki:
         endpoint: "http://ipiece-loki.monitoring:3100/loki/api/v1/push"
         tls:
           insecure: true
 
-      # 디버깅용
+      # 디버깅용 – 에이전트가 어떤 로그 레코드를 만들었는지 stdout에 찍기
       debug/logs:
         verbosity: detailed
 
