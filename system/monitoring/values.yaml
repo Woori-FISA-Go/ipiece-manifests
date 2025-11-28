@@ -55,12 +55,15 @@ kube-prometheus-stack:
 loki-stack:
   promtail:
     enabled: false
+
   loki:
     enabled: true
     isDefault: false
     fullnameOverride: ipiece-loki
+
     config:
       auth_enabled: false
+
       schema_config:
         configs:
           - from: 2024-01-01
@@ -70,10 +73,16 @@ loki-stack:
             index:
               prefix: index_
               period: 24h
+
+      # 🔥 S3 설정 (버킷 이름/엔드포인트 명시)
       storage_config:
         aws:
-          s3: s3://ipiece-loki-store
+          bucketnames: ipiece-loki-store
+          endpoint: s3.ap-northeast-2.amazonaws.com
           region: ap-northeast-2
+          s3forcepathstyle: false
+          insecure: false
+
     extraEnv:
       - name: AWS_ACCESS_KEY_ID
         valueFrom:
@@ -85,10 +94,12 @@ loki-stack:
           secretKeyRef:
             name: loki-s3-secret
             key: S3_AWS_SECRET_ACCESS_KEY
+
     compactor:
       working_directory: /data/loki/boltdb-shipper-compactor
       shared_store: s3
       retention_enabled: true
+
     limits_config:
       retention_period: 30d
 
@@ -125,10 +136,16 @@ otel:
 
   config:
     receivers:
-      # ✅ [복구] EKS 노드 메트릭 수집 (CPU/Memory)
+      # ✅ EKS 노드 메트릭 수집 (CPU/Memory 등)
       hostmetrics:
         collection_interval: 10s
-        scrapers: { cpu: {}, memory: {}, disk: {}, filesystem: {}, network: {}, load: {} }
+        scrapers:
+          cpu: {}
+          memory: {}
+          disk: {}
+          filesystem: {}
+          network: {}
+          load: {}
 
       kubeletstats:
         auth_type: "serviceAccount"
@@ -140,8 +157,12 @@ otel:
       filelog:
         include:
           - /var/log/pods/*/*/*.log
+
+        # ✅ 자기 자신(otel) 로그는 제외해서 루프 방지
+        # /var/log/pods/monitoring_ipiece-monitoring-otel-agent-XXXXX_UID/otel/0.log
         exclude:
-          - /var/log/pods/monitoring_ipiece-monitoring-otel-agent_*/*.log
+          - /var/log/pods/monitoring_ipiece-monitoring-otel-agent-*/*/otel/*.log
+
         start_at: end
         include_file_path: true
         include_file_name: false
@@ -182,7 +203,7 @@ otel:
             type: move
             from: attributes["restart_count"]
             to: resource["k8s.container.restart_count"]
-          
+
           # 4. 로그 본문 정리
           - id: clean-up-body
             type: move
@@ -200,21 +221,24 @@ otel:
         send_batch_size: 512
 
       k8sattributes:
-        auth_type: "serviceAccount"
+        auth_type: "ServiceAccount"
         passthrough: false
         extract:
-          metadata: [k8s.pod.name, k8s.pod.uid, k8s.deployment.name, k8s.namespace.name, k8s.node.name]
+          metadata:
+            - k8s.pod.name
+            - k8s.pod.uid
+            - k8s.deployment.name
+            - k8s.namespace.name
+            - k8s.node.name
         pod_association:
           - sources:
               - from: resource_attribute
                 name: k8s.pod.uid
-      
+
       resourcedetection:
         detectors: [env, system]
 
-      # 🔥 [수정됨] Resource Processor 추가 (라벨링 해결책)
-      # 에러가 났던 resource_to_telemetry_conversion 대신
-      # loki.resource.labels 속성을 직접 심어주는 방식입니다.
+      # Loki 라벨 힌트용 Resource Processor
       resource:
         attributes:
           - key: loki.resource.labels
@@ -224,12 +248,14 @@ otel:
     exporters:
       prometheusremotewrite:
         endpoint: "http://prometheus-operated.monitoring:9090/api/v1/write"
-        tls: { insecure: true }
+        tls:
+          insecure: true
 
       loki:
         endpoint: "http://ipiece-loki.monitoring:3100/loki/api/v1/push"
-        tls: { insecure: true }
-        # ❌ 삭제됨: resource_to_telemetry_conversion (CrashLoopBackOff 원인)
+        tls:
+          insecure: true
+        # resource_to_telemetry_conversion 는 버전 이슈 때문에 제거
 
       debug/logs:
         verbosity: detailed
@@ -240,9 +266,9 @@ otel:
           receivers: [hostmetrics, kubeletstats, otlp]
           processors: [k8sattributes, batch, resourcedetection]
           exporters: [prometheusremotewrite]
+
         logs:
           receivers: [filelog, otlp]
-          # 🔥 [수정됨] resource 프로세서 추가 (k8sattributes 뒤에 위치)
           processors: [k8sattributes, resource, batch, resourcedetection]
           exporters: [loki, debug/logs]
 
