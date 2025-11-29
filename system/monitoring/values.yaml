@@ -1,7 +1,7 @@
 # system/monitoring/values.yaml
 
 # ==========================================
-# 1. Prometheus (메트릭 저장 - EBS 사용)
+# 1. Prometheus
 # ==========================================
 kube-prometheus-stack:
   prometheus:
@@ -46,12 +46,12 @@ kube-prometheus-stack:
       GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"
 
-  # ✅ [Upgrade] 노드 상세 메트릭 수집 활성화
+  # ✅ [Upgrade] 노드 메트릭 품질 향상
   nodeExporter:
     enabled: true
 
 # ==========================================
-# 2. Loki (로그 저장 - S3 사용, Config 완전체 적용)
+# 2. Loki (Config 완전체 적용)
 # ==========================================
 loki-stack:
   promtail:
@@ -166,7 +166,12 @@ otel:
       hostmetrics:
         collection_interval: 10s
         scrapers:
-          cpu: {}, memory: {}, disk: {}, filesystem: {}, network: {}, load: {}
+          cpu: {}
+          memory: {}
+          disk: {}
+          filesystem: {}
+          network: {}
+          load: {}
 
       kubeletstats:
         auth_type: "serviceAccount"
@@ -175,10 +180,10 @@ otel:
         collection_interval: 10s
         metric_groups: [node, pod]
 
-      # ✅ [Upgrade] K8s 이벤트 수집 (OOMKilled, FailedMount 등 확인용)
+      # ✅ [Upgrade] K8s 이벤트 수집
       k8sevents:
         auth_type: "serviceAccount"
-        namespaces: [default, monitoring, ipiece-frontend-prod] # 필요한 네임스페이스 추가
+        namespaces: [default, monitoring, ipiece-frontend-prod]
 
       filelog:
         include:
@@ -189,7 +194,7 @@ otel:
         include_file_path: true
         include_file_name: false
         
-        # ✅ [Upgrade] 자바 로그 멀티라인 통합 (필수)
+        # ✅ [Upgrade] 자바 로그 멀티라인 통합
         multiline:
           line_start_pattern: '^\d{4}-\d{2}-\d{2}'
 
@@ -260,7 +265,7 @@ otel:
               - from: resource_attribute
                 name: k8s.pod.uid
 
-      # ✅ [Upgrade] EC2 메타데이터 추가 (AZ, InstanceType 등 확인용)
+      # ✅ [Upgrade] EC2 메타데이터 추가
       resourcedetection:
         detectors: [env, system, ec2]
 
@@ -279,8 +284,6 @@ otel:
         endpoint: "http://ipiece-loki.monitoring:3100/loki/api/v1/push"
         tls: { insecure: true }
 
-      # ❌ debug/logs 제거됨 (노이즈 방지)
-
     service:
       pipelines:
         metrics:
@@ -297,7 +300,7 @@ otel:
   serviceAccount:
     create: true
 
-  # ✅ [Upgrade] k8sevents 수집을 위한 권한 추가 (events watch)
+  # ✅ [Upgrade] k8sevents 수집 권한
   clusterRole:
     create: true
     rules:
