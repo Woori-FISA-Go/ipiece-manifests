@@ -8,18 +8,22 @@ metadata:
     alb.ingress.kubernetes.io/healthcheck-path: /
     alb.ingress.kubernetes.io/group.name: ipiece
     
-    # ✅ [추가 1] ExternalDNS가 이 호스트네임을 보고 Route53을 만듭니다.
+    # ✅ ExternalDNS가 이 호스트네임을 보고 Route53을 만듭니다.
     external-dns.alpha.kubernetes.io/hostname: ipiece.store
 
-    # ⚠️ [옵션] HTTPS(SSL)를 쓰려면 아래 주석을 해제하고 ACM 인증서 ARN을 넣어야 합니다.
-    # alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    # ✅ HTTP(80) + HTTPS(443) 리스너 둘 다 활성화
+    #    → HTTP 절대 안 꺼짐, 기존처럼 계속 사용 가능
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+
+    # ✅ ACM 인증서 ARN (ipiece.store)
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:235625001959:certificate/ad38efac-da2d-494f-9bcb-8db272d92577
+
+    # ❌ 넣지 말 것: HTTP → HTTPS 강제 리다이렉트
     # alb.ingress.kubernetes.io/ssl-redirect: '443'
-    # alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:235625001959:certificate/xxxx-xxxx...
-    
 spec:
   ingressClassName: alb
   rules:
-    # ✅ [추가 2] 호스트 명시
+    # ✅ 호스트 명시
     - host: ipiece.store
       http:
         paths:
