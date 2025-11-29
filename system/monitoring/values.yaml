@@ -43,7 +43,8 @@ kube-prometheus-stack:
         url: http://ipiece-loki:3100/
         access: proxy
     env:
-      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+      # 🔥 포트 빼고 프로토콜/도메인만 사용
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s/grafana/"
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"
 
   # 노드 메트릭 품질 향상

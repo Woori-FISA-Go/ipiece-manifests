@@ -7,26 +7,29 @@ metadata:
     # ALB 사용
     kubernetes.io/ingress.class: alb
 
-    # 🔒 VPC 내부 전용 ALB (인터넷에서 직접 접근 불가)
-    alb.ingress.kubernetes.io/scheme: internal
-
+    # 🔓 이제 퍼블릭 ALB 에서 같이 쓰게 변경
+    alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
 
-    # 👉 내부용이니까 그냥 HTTP만 열어도 충분 (원하면 HTTPS도 나중에 추가 가능)
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+    # 👉 프론트/백엔드와 같은 그룹으로 묶어서 **같은 ALB** 사용
+    alb.ingress.kubernetes.io/group.name: ipiece
 
-    alb.ingress.kubernetes.io/group.name: ipiece-monitoring
-    alb.ingress.kubernetes.io/healthcheck-path: /api/health
+    # ✅ Grafana 헬스체크 경로 (서브패스 /grafana 기준)
+    alb.ingress.kubernetes.io/healthcheck-path: /grafana/api/health
 
-    # ❌ 외부 도메인 붙일 필요 없음 (그래도 쓰고 싶으면 나중에 다시 추가)
-    # external-dns.alpha.kubernetes.io/hostname: grafana.ipiece.store
+    # ✅ HTTP + HTTPS 모두 열고, HTTPS에서 임베드
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}, {"HTTPS":443}]'
 
-    # ❌ 퍼블릭 인증서도 필요 없음 (ALB에서 HTTPS 안 쓸 거라)
-    # alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:...
+    # ✅ ipiece.store용 ACM 인증서 (프론트/백엔드와 동일)
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:235625001959:certificate/ad38efac-da2d-494f-9bcb-8db272d92577
+
+    # (옵션) 외부 DNS는 이미 ipiece.store 가 있으니 굳이 또 안 넣어도 됨
+    # external-dns.alpha.kubernetes.io/hostname: ipiece.store
 spec:
   ingressClassName: alb
   rules:
-    - http:
+    - host: ipiece.store   # ⭐ host 명시해서 /grafana 로 라우팅
+      http:
         paths:
           - path: /grafana
             pathType: Prefix
