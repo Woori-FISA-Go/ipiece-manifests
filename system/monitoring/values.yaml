@@ -46,12 +46,14 @@ kube-prometheus-stack:
       GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"
 
-  # ✅ 노드 메트릭 품질 향상
+  # 노드 메트릭 품질 향상
   nodeExporter:
     enabled: true
 
 # ==========================================
-# 2. Loki (Config 완전체 적용)
+# 2. Loki
+#   - empty ring 해결 (lifecycler.address 제거)
+#   - S3 자격증명 singleBinary.extraEnv 로 이동
 # ==========================================
 loki-stack:
   promtail:
@@ -62,7 +64,6 @@ loki-stack:
     isDefault: false
     fullnameOverride: ipiece-loki
 
-    # ✅ empty ring 해결 및 안정성 향상 설정
     config:
       auth_enabled: false
 
@@ -76,7 +77,7 @@ loki-stack:
 
       ingester:
         lifecycler:
-          address: 0.0.0.0
+          # address: 0.0.0.0  # ❌ 삭제 (자기 주소 자동 감지에 맡김)
           ring:
             kvstore:
               store: memberlist
@@ -118,20 +119,22 @@ loki-stack:
         ingestion_rate_mb: 10
         ingestion_burst_size_mb: 20
 
-    extraEnv:
-      - name: AWS_ACCESS_KEY_ID
-        valueFrom:
-          secretKeyRef:
-            name: loki-s3-secret
-            key: S3_AWS_ACCESS_KEY_ID
-      - name: AWS_SECRET_ACCESS_KEY
-        valueFrom:
-          secretKeyRef:
-            name: loki-s3-secret
-            key: S3_AWS_SECRET_ACCESS_KEY
+    # 여기서부터는 Loki Helm chart 의 singleBinary.extraEnv 로 들어감
+    singleBinary:
+      extraEnv:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: loki-s3-secret
+              key: S3_AWS_ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: loki-s3-secret
+              key: S3_AWS_SECRET_ACCESS_KEY
 
 # ==========================================
-# 3. OTel Collector (기능 대폭 강화)
+# 3. OTel Collector (DaemonSet)
 # ==========================================
 otel:
   mode: daemonset
@@ -180,7 +183,7 @@ otel:
         collection_interval: 10s
         metric_groups: [node, pod]
 
-      # ✅ K8s 이벤트 수집 (이름 정확히 k8s_events)
+      # K8s 이벤트 수집
       k8s_events:
         auth_type: "serviceAccount"
         namespaces: [default, monitoring, ipiece-frontend-prod]
@@ -194,7 +197,7 @@ otel:
         include_file_path: true
         include_file_name: false
 
-        # ✅ 자바 로그 멀티라인 통합
+        # 자바 로그 멀티라인 통합
         multiline:
           line_start_pattern: '^\d{4}-\d{2}-\d{2}'
 
@@ -240,7 +243,6 @@ otel:
           http: { endpoint: 0.0.0.0:4318 }
 
     processors:
-      # ✅ 메모리 폭주 방지
       memory_limiter:
         check_interval: 1s
         limit_mib: 450
@@ -265,7 +267,6 @@ otel:
               - from: resource_attribute
                 name: k8s.pod.uid
 
-      # ✅ EC2 메타데이터 추가
       resourcedetection:
         detectors: [env, system, ec2]
 
@@ -294,7 +295,6 @@ otel:
           exporters: [prometheusremotewrite]
 
         logs:
-          # ✅ K8s 이벤트 수집 추가
           receivers: [filelog, otlp, k8s_events]
           processors: [memory_limiter, k8sattributes, resource, batch, resourcedetection]
           exporters: [loki]
@@ -302,7 +302,6 @@ otel:
   serviceAccount:
     create: true
 
-  # ✅ k8s_events 수집 권한
   clusterRole:
     create: true
     rules:
