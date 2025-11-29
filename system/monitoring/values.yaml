@@ -46,7 +46,7 @@ kube-prometheus-stack:
       GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"
 
-  # ✅ [Upgrade] 노드 메트릭 품질 향상
+  # ✅ 노드 메트릭 품질 향상
   nodeExporter:
     enabled: true
 
@@ -62,10 +62,10 @@ loki-stack:
     isDefault: false
     fullnameOverride: ipiece-loki
 
-    # ✅ [Upgrade] empty ring 해결 및 안정성을 위한 상세 설정
+    # ✅ empty ring 해결 및 안정성 향상 설정
     config:
       auth_enabled: false
-      
+
       server:
         http_listen_port: 3100
         grpc_listen_port: 9095
@@ -180,8 +180,8 @@ otel:
         collection_interval: 10s
         metric_groups: [node, pod]
 
-      # ✅ [Upgrade] K8s 이벤트 수집
-      k8sevents:
+      # ✅ K8s 이벤트 수집 (이름 정확히 k8s_events)
+      k8s_events:
         auth_type: "serviceAccount"
         namespaces: [default, monitoring, ipiece-frontend-prod]
 
@@ -193,8 +193,8 @@ otel:
         start_at: end
         include_file_path: true
         include_file_name: false
-        
-        # ✅ [Upgrade] 자바 로그 멀티라인 통합
+
+        # ✅ 자바 로그 멀티라인 통합
         multiline:
           line_start_pattern: '^\d{4}-\d{2}-\d{2}'
 
@@ -240,7 +240,7 @@ otel:
           http: { endpoint: 0.0.0.0:4318 }
 
     processors:
-      # ✅ [Upgrade] 메모리 폭주 방지
+      # ✅ 메모리 폭주 방지
       memory_limiter:
         check_interval: 1s
         limit_mib: 450
@@ -265,7 +265,7 @@ otel:
               - from: resource_attribute
                 name: k8s.pod.uid
 
-      # ✅ [Upgrade] EC2 메타데이터 추가
+      # ✅ EC2 메타데이터 추가
       resourcedetection:
         detectors: [env, system, ec2]
 
@@ -278,11 +278,13 @@ otel:
     exporters:
       prometheusremotewrite:
         endpoint: "http://prometheus-operated.monitoring:9090/api/v1/write"
-        tls: { insecure: true }
+        tls:
+          insecure: true
 
       loki:
         endpoint: "http://ipiece-loki.monitoring:3100/loki/api/v1/push"
-        tls: { insecure: true }
+        tls:
+          insecure: true
 
     service:
       pipelines:
@@ -292,15 +294,15 @@ otel:
           exporters: [prometheusremotewrite]
 
         logs:
-          # ✅ [Upgrade] k8sevents 추가
-          receivers: [filelog, otlp, k8sevents]
+          # ✅ K8s 이벤트 수집 추가
+          receivers: [filelog, otlp, k8s_events]
           processors: [memory_limiter, k8sattributes, resource, batch, resourcedetection]
           exporters: [loki]
 
   serviceAccount:
     create: true
 
-  # ✅ [Upgrade] k8sevents 수집 권한
+  # ✅ k8s_events 수집 권한
   clusterRole:
     create: true
     rules:
