@@ -51,7 +51,7 @@ kube-prometheus-stack:
     enabled: true
 
 # ==========================================
-# 2. Loki (Loki + S3 연동 완전 수정본)
+# 2. Loki (Loki + S3 연동 수정본)
 # ==========================================
 loki-stack:
   promtail:
@@ -62,7 +62,20 @@ loki-stack:
     isDefault: false
     fullnameOverride: ipiece-loki
 
-    # ✅ Loki 메인 설정
+    # 🔑 여기에서 실제 Pod 환경변수 주입
+    env:
+      - name: AWS_ACCESS_KEY_ID
+        valueFrom:
+          secretKeyRef:
+            name: loki-s3-secret
+            key: S3_AWS_ACCESS_KEY_ID
+      - name: AWS_SECRET_ACCESS_KEY
+        valueFrom:
+          secretKeyRef:
+            name: loki-s3-secret
+            key: S3_AWS_SECRET_ACCESS_KEY
+
+    # Loki 메인 설정 (지금 쓰고 있던 config 그대로 유지)
     config:
       auth_enabled: false
 
@@ -70,15 +83,12 @@ loki-stack:
         http_listen_port: 3100
         grpc_listen_port: 9095
 
-      # ✅ 단일 노드지만 memberlist 기반 ring 사용 (기본 권장)
       memberlist:
         join_members:
           - ipiece-loki-memberlist.monitoring.svc.cluster.local
 
       ingester:
         lifecycler:
-          # ❌ 이 줄이 문제라서 삭제함
-          # address: 0.0.0.0
           ring:
             kvstore:
               store: memberlist
@@ -120,19 +130,6 @@ loki-stack:
         ingestion_rate_mb: 10
         ingestion_burst_size_mb: 20
 
-    # ✅ 여기서부터가 제일 중요: singleBinary.extraEnv 로 옮겨야 실제 Pod에 들어감
-    singleBinary:
-      extraEnv:
-        - name: AWS_ACCESS_KEY_ID
-          valueFrom:
-            secretKeyRef:
-              name: loki-s3-secret
-              key: S3_AWS_ACCESS_KEY_ID
-        - name: AWS_SECRET_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              name: loki-s3-secret
-              key: S3_AWS_SECRET_ACCESS_KEY
 
 # ==========================================
 # 3. OTel Collector (DaemonSet)
