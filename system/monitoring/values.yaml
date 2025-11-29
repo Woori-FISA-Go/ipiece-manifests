@@ -51,9 +51,7 @@ kube-prometheus-stack:
     enabled: true
 
 # ==========================================
-# 2. Loki
-#   - empty ring 해결 (lifecycler.address 제거)
-#   - S3 자격증명 singleBinary.extraEnv 로 이동
+# 2. Loki (Loki + S3 연동 완전 수정본)
 # ==========================================
 loki-stack:
   promtail:
@@ -64,6 +62,7 @@ loki-stack:
     isDefault: false
     fullnameOverride: ipiece-loki
 
+    # ✅ Loki 메인 설정
     config:
       auth_enabled: false
 
@@ -71,13 +70,15 @@ loki-stack:
         http_listen_port: 3100
         grpc_listen_port: 9095
 
+      # ✅ 단일 노드지만 memberlist 기반 ring 사용 (기본 권장)
       memberlist:
         join_members:
           - ipiece-loki-memberlist.monitoring.svc.cluster.local
 
       ingester:
         lifecycler:
-          # address: 0.0.0.0  # ❌ 삭제 (자기 주소 자동 감지에 맡김)
+          # ❌ 이 줄이 문제라서 삭제함
+          # address: 0.0.0.0
           ring:
             kvstore:
               store: memberlist
@@ -119,7 +120,7 @@ loki-stack:
         ingestion_rate_mb: 10
         ingestion_burst_size_mb: 20
 
-    # 여기서부터는 Loki Helm chart 의 singleBinary.extraEnv 로 들어감
+    # ✅ 여기서부터가 제일 중요: singleBinary.extraEnv 로 옮겨야 실제 Pod에 들어감
     singleBinary:
       extraEnv:
         - name: AWS_ACCESS_KEY_ID
