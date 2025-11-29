@@ -25,9 +25,12 @@ kube-prometheus-stack:
   grafana:
     enabled: true
     adminPassword: "admin"
+    # replicaCount는 기본 1이라 생략해도 되지만, 보기 좋게 명시
+    replicaCount: 1
+
     grafana.ini:
       server:
-        # ✅ Grafana를 /grafana 서브패스 기준으로 서비스
+        # ✅ /grafana 서브패스로 서비스
         root_url: "%(protocol)s://%(domain)s/grafana/"
         serve_from_sub_path: true
 
@@ -39,10 +42,6 @@ kube-prometheus-stack:
         enabled: true
         org_role: Viewer
 
-    # ✅ EBS RWO PVC Multi-Attach 방지: 한 번에 한 파드만 사용 (Recreate)
-    deploymentStrategy:
-      type: Recreate
-
     persistence:
       enabled: true
       storageClassName: gp2
@@ -53,11 +52,6 @@ kube-prometheus-stack:
         type: loki
         url: http://ipiece-loki:3100/
         access: proxy
-
-    # ⛔ env 쪽은 grafana.ini.server로 대체했으므로 제거
-    # env:
-    #   GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s/grafana/"
-    #   GF_SERVER_SERVE_FROM_SUB_PATH: "true"
 
   # 노드 메트릭 품질 향상
   nodeExporter:
