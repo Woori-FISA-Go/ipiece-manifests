@@ -7,6 +7,7 @@ metadata:
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/healthcheck-path: /
     alb.ingress.kubernetes.io/group.name: ipiece
+    alb.ingress.kubernetes.io/group.order: "20"   # ⭐ Grafana 보다 뒤
     
     # ✅ ExternalDNS가 이 호스트네임을 보고 Route53을 만듭니다.
     external-dns.alpha.kubernetes.io/hostname: ipiece.store

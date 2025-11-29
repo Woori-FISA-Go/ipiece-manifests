@@ -6,6 +6,7 @@ metadata:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/group.name: ipiece
+    alb.ingress.kubernetes.io/group.order: "20"   # 이것도 뒤
     alb.ingress.kubernetes.io/healthcheck-path: /api/healthz
 
     # 🔥 WebSocket/롱폴링 끊김 방지를 위한 Idle Timeout 튜닝 (기본 60초 → 1시간)

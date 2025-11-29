@@ -4,34 +4,25 @@ metadata:
   name: grafana-ingress
   namespace: monitoring
   annotations:
-    # ALB 사용
     kubernetes.io/ingress.class: alb
 
-    # 🔓 이제 퍼블릭 ALB 에서 같이 쓰게 변경
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
 
-    # 👉 프론트/백엔드와 같은 그룹으로 묶어서 **같은 ALB** 사용
     alb.ingress.kubernetes.io/group.name: ipiece
+    alb.ingress.kubernetes.io/group.order: "10"   # ⭐ Grafana 규칙 먼저 적용
 
-    # ✅ Grafana 헬스체크 경로 (서브패스 /grafana 기준)
     alb.ingress.kubernetes.io/healthcheck-path: /grafana/api/health
 
-    # ✅ HTTP + HTTPS 모두 열고, HTTPS에서 임베드
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}, {"HTTPS":443}]'
-
-    # ✅ ipiece.store용 ACM 인증서 (프론트/백엔드와 동일)
     alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:235625001959:certificate/ad38efac-da2d-494f-9bcb-8db272d92577
-
-    # (옵션) 외부 DNS는 이미 ipiece.store 가 있으니 굳이 또 안 넣어도 됨
-    # external-dns.alpha.kubernetes.io/hostname: ipiece.store
 spec:
   ingressClassName: alb
   rules:
-    - host: ipiece.store   # ⭐ host 명시해서 /grafana 로 라우팅
+    - host: ipiece.store
       http:
         paths:
-          - path: /grafana
+          - path: /grafana/
             pathType: Prefix
             backend:
               service:
