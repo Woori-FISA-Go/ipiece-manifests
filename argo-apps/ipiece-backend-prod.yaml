@@ -1,20 +1,22 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: ipiece-backend-prod   # 이름 변경
+  name: ipiece-backend-prod
   namespace: argocd
+  annotations:
+    notifications.argoproj.io/subscribe.on-sync-or-health-change.slack-cicd: "true"
 spec:
   project: default
   source:
     repoURL: https://github.com/Woori-FISA-Go/ipiece-manifests
     targetRevision: develop
-    path: apps/backend/overlays/prod  # ✅ 중요: Prod 폴더 바라보기
+    path: apps/backend/overlays/prod
   destination:
     server: https://kubernetes.default.svc
-    namespace: default        # 운영은 default 네임스페이스 사용
+    namespace: default
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-    - CreateNamespace=true
+      - CreateNamespace=true

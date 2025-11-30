@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+  namespace: argocd
+data:
+  # 1) Slack Webhook 서비스 정의 (Secret의 slack-webhook 키를 사용)
+  service.webhook.slack-cicd: |
+    url: $slack-webhook
+
+  # 2) 트리거: Sync/Health 상태 변경 시 알림
+  trigger.on-sync-or-health-change: |
+    - when: app.status.operationState.phase in ['Succeeded', 'Failed']
+      send: [app-sync-status]
+    - when: app.status.health.status in ['Degraded', 'Missing', 'Suspended']
+      send: [app-sync-status]
+
+  # 3) 템플릿: 슬랙 메시지 포맷
+  template.app-sync-status: |
+    message: |
+      [{{.app.metadata.name}}] Sync={{.app.status.sync.status}}, Health={{.app.status.health.status}}
+      {{if .context.argocdUrl}}링크: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}{{end}}
+
+    webhook:
+      slack-cicd:
+        method: POST
+        body: |
+          {
+            "text": "[ARGO] {{.app.metadata.name}}: {{.app.status.sync.status}} / {{.app.status.health.status}}",
+            "attachments": [
+              {
+                "color": "{{if eq .app.status.health.status `Healthy`}}good{{else}}danger{{end}}",
+                "fields": [
+                  {
+                    "title": "Sync",
+                    "value": "{{.app.status.sync.status}}",
+                    "short": true
+                  },
+                  {
+                    "title": "Health",
+                    "value": "{{.app.status.health.status}}",
+                    "short": true
+                  },
+                  {
+                    "title": "Project",
+                    "value": "{{.app.spec.project}}",
+                    "short": true
+                  }
+                  {{if .context.argocdUrl}},
+                  {
+                    "title": "ArgoCD",
+                    "value": "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+                    "short": false
+                  }
+                  {{end}}
+                ]
+              }
+            ]
+          }

@@ -3,6 +3,8 @@ kind: Application
 metadata:
   name: ipiece-frontend-prod
   namespace: argocd
+  annotations:
+    notifications.argoproj.io/subscribe.on-sync-or-health-change.slack-cicd: "true"
 spec:
   project: default
   source:
