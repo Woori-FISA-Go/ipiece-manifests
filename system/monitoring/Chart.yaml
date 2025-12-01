@@ -11,8 +11,14 @@ dependencies:
     version: 2.10.2
     repository: https://grafana.github.io/helm-charts
   
-  # 👇 [추가] OTel Collector 차트
+  # 👇 [기존] Agent용 (DaemonSet)
   - name: opentelemetry-collector
     version: 0.97.1
     repository: https://open-telemetry.github.io/opentelemetry-helm-charts
     alias: otel
+
+  # 👇 [추가 필수!] Gateway용 (Deployment)
+  - name: opentelemetry-collector
+    version: 0.97.1
+    repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+    alias: otel-collector-gateway  # values.yaml의 키 이름과 똑같아야 합니다!
