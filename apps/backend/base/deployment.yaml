@@ -18,9 +18,9 @@ spec:
       imagePullSecrets:
         - name: ecr-secret
 
-      # -------------------------------
-      # ⬇⬇⬇ OTel Agent JAR 다운로드
-      # -------------------------------
+      # ===========================================
+      # 1) OTel Java Agent 다운로드 initContainer
+      # ===========================================
       initContainers:
         - name: download-otel-agent
           image: curlimages/curl:latest
@@ -32,7 +32,6 @@ spec:
           volumeMounts:
             - name: otel-agent
               mountPath: /otel
-      # -------------------------------
 
       containers:
         - name: ipiece-server
@@ -41,12 +40,15 @@ spec:
             - containerPort: 8080
               name: http
 
-          # -------------------------------
-          # ⬇⬇⬇ Spring Boot에 javaagent 적용
-          # -------------------------------
+          # ===========================================
+          # 2) Java 실행 override (가장 중요!!)
+          # ===========================================
+          command: ["java"]
           args:
             - "-javaagent:/otel/opentelemetry-javaagent.jar"
-          # -------------------------------
+            - "-jar"
+            - "/app/app.jar"
+          # ===========================================
 
           env:
             - name: SPRING_PROFILES_ACTIVE
@@ -55,9 +57,9 @@ spec:
             - name: SERVER_SERVLET_CONTEXT_PATH
               value: "/api"
 
-            # -------------------------------
-            # ⬇⬇⬇ OTel Exporter 설정
-            # -------------------------------
+            # ===========================================
+            # 3) OTel Exporter 설정
+            # ===========================================
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: "http://ipiece-monitoring-otel-agent.monitoring.svc.cluster.local:4317"
 
@@ -73,7 +75,6 @@ spec:
               value: "otlp"
             - name: OTEL_LOGS_EXPORTER
               value: "otlp"
-            # -------------------------------
 
           envFrom:
             - secretRef:
