@@ -308,11 +308,6 @@ otel:
 
     service:
       pipelines:
-        metrics:
-          receivers: [hostmetrics, kubeletstats]
-          processors: [batch]
-          exporters: [prometheusremotewrite]
-
         logs:
           receivers: [filelog, otlp, k8s_events]
           processors: [memory_limiter, k8sattributes, resource, batch, resourcedetection]
