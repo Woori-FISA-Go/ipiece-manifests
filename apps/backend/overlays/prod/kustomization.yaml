@@ -7,5 +7,5 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 images:
 - name: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-server
   newName: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-server
-  newTag: 6c42ec1-69
+  newTag: 565003c-70
 kind: Kustomization
