@@ -212,6 +212,8 @@ otel:
         endpoint: "ipiece-otel-collector-gateway.monitoring.svc.cluster.local:4317"
         tls:
           insecure: true
+        protocols:
+          grpc: {}
 
     service:
       pipelines:
