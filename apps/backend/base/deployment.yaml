@@ -16,82 +16,97 @@ spec:
     spec:
       serviceAccountName: ipiece-backend-sa
       imagePullSecrets:
-      - name: ecr-secret
+        - name: ecr-secret
+
+      # -------------------------------
+      # ⬇⬇⬇ OTel Agent JAR 다운로드
+      # -------------------------------
+      initContainers:
+        - name: download-otel-agent
+          image: curlimages/curl:latest
+          command: ["sh", "-c"]
+          args:
+            - >
+              curl -L https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.7.0/opentelemetry-javaagent.jar
+              -o /otel/opentelemetry-javaagent.jar ;
+          volumeMounts:
+            - name: otel-agent
+              mountPath: /otel
+      # -------------------------------
+
       containers:
-      - name: ipiece-server
-        image: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-server:latest
-        ports:
-        - containerPort: 8080
-          name: http
+        - name: ipiece-server
+          image: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-server:latest
+          ports:
+            - containerPort: 8080
+              name: http
 
-        # ----------------------------
-        # 🔥 여기부터 OTel 핵심 부분
-        # ----------------------------
-        args:
-          - "-javaagent:/otel/opentelemetry-javaagent.jar"
+          # -------------------------------
+          # ⬇⬇⬇ Spring Boot에 javaagent 적용
+          # -------------------------------
+          args:
+            - "-javaagent:/otel/opentelemetry-javaagent.jar"
+          # -------------------------------
 
-        env:
-        - name: SPRING_PROFILES_ACTIVE
-          value: "prod"
-        - name: SERVER_SERVLET_CONTEXT_PATH
-          value: "/api"
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "prod"
 
-        # OTel Service Name
-        - name: OTEL_SERVICE_NAME
-          value: "ipiece-server"
+            - name: SERVER_SERVLET_CONTEXT_PATH
+              value: "/api"
 
-        # OTel Collector Endpoint
-        - name: OTEL_EXPORTER_OTLP_ENDPOINT
-          value: "http://ipiece-monitoring-otel.monitoring.svc.cluster.local:4317"
+            # -------------------------------
+            # ⬇⬇⬇ OTel Exporter 설정
+            # -------------------------------
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://ipiece-monitoring-otel-agent.monitoring.svc.cluster.local:4317"
 
-        # Resource Attributes
-        - name: OTEL_RESOURCE_ATTRIBUTES
-          value: "service.namespace=ipiece,service.name=ipiece-server,deployment.environment=prod"
+            - name: OTEL_SERVICE_NAME
+              value: "ipiece-server"
 
-        # Metrics + Traces 활성화
-        - name: OTEL_METRICS_EXPORTER
-          value: "otlp"
-        - name: OTEL_TRACES_EXPORTER
-          value: "otlp"
-        - name: OTEL_LOGS_EXPORTER
-          value: "none"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.name=ipiece-server,service.namespace=backend,deployment.environment=prod"
 
-        envFrom:
-        - secretRef:
-            name: ipiece-backend-env
+            - name: OTEL_TRACES_EXPORTER
+              value: "otlp"
+            - name: OTEL_METRICS_EXPORTER
+              value: "otlp"
+            - name: OTEL_LOGS_EXPORTER
+              value: "otlp"
+            # -------------------------------
 
-        resources:
-          requests:
-            memory: "1Gi"
-            cpu: "500m"
-          limits:
-            memory: "2Gi"
-            cpu: "1000m"
+          envFrom:
+            - secretRef:
+                name: ipiece-backend-env
 
-        volumeMounts:
-        - name: otel-agent
-          mountPath: /otel
+          volumeMounts:
+            - name: otel-agent
+              mountPath: /otel
 
-        livenessProbe:
-          httpGet:
-            path: /api/healthz
-            port: 8080
-          initialDelaySeconds: 60
-          periodSeconds: 10
-          failureThreshold: 3
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
 
-        readinessProbe:
-          httpGet:
-            path: /api/healthz
-            port: 8080
-          initialDelaySeconds: 30
-          periodSeconds: 5
-          failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/healthz
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /api/healthz
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            failureThreshold: 3
 
       volumes:
-      - name: otel-agent
-        configMap:
-          name: otel-javaagent
-          items:
-            - key: opentelemetry-javaagent.jar
-              path: opentelemetry-javaagent.jar
+        - name: otel-agent
+          emptyDir: {}
