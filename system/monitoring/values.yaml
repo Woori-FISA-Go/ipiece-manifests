@@ -287,8 +287,3 @@ otel-collector-gateway:
           receivers: [otlp]
           processors: [batch]
           exporters: [loki]
-
-        traces:
-          receivers: [otlp]
-          processors: [batch]
-          exporters: []
