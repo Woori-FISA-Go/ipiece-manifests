@@ -301,11 +301,6 @@ otel:
         tls:
           insecure: true
 
-      prometheusremotewrite:
-        endpoint: "http://prometheus-operated.monitoring:9090/api/v1/write"
-        tls:
-          insecure: true
-
     service:
       pipelines:
         logs:
