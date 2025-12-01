@@ -326,9 +326,6 @@ otel-collector-gateway:
 
   service:
     type: ClusterIP
-    ports:
-      otlp-grpc: 4317
-      otlp-http: 4318
 
   config:
     receivers:
