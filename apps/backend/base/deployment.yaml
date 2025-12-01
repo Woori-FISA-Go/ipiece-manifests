@@ -62,15 +62,22 @@ spec:
             - name: OTEL_SERVICE_NAME
               value: "ipiece-server"
 
-            - name: OTEL_RESOURCE_ATTRIBUTES
-              value: "service.name=ipiece-server,service.namespace=backend,deployment.environment=prod"
-
             - name: OTEL_TRACES_EXPORTER
               value: "otlp"
+
             - name: OTEL_METRICS_EXPORTER
               value: "otlp"
+
             - name: OTEL_LOGS_EXPORTER
               value: "otlp"
+
+            - name: KUBERNETES_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.name=ipiece-server,service.namespace=backend,deployment.environment=prod,k8s.node.name=$(KUBERNETES_NODE_NAME)"
 
           envFrom:
             - secretRef:
