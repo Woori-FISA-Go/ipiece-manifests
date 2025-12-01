@@ -14,7 +14,7 @@ spec:
       labels:
         app: ipiece-server
     spec:
-      serviceAccountName: ipiece-backend-sa # S3 접근을 위한 추가
+      serviceAccountName: ipiece-backend-sa
       imagePullSecrets:
       - name: ecr-secret
       containers:
@@ -23,16 +23,43 @@ spec:
         ports:
         - containerPort: 8080
           name: http
+
+        # ----------------------------
+        # 🔥 여기부터 OTel 핵심 부분
+        # ----------------------------
+        args:
+          - "-javaagent:/otel/opentelemetry-javaagent.jar"
+
         env:
         - name: SPRING_PROFILES_ACTIVE
           value: "prod"
-        # ✅ [추가됨] 백엔드 애플리케이션의 기본 경로를 /api로 설정
-        # 이제 백엔드는 모든 요청이 /api로 시작한다고 인식합니다.
         - name: SERVER_SERVLET_CONTEXT_PATH
           value: "/api"
+
+        # OTel Service Name
+        - name: OTEL_SERVICE_NAME
+          value: "ipiece-server"
+
+        # OTel Collector Endpoint
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "http://ipiece-monitoring-otel.monitoring.svc.cluster.local:4317"
+
+        # Resource Attributes
+        - name: OTEL_RESOURCE_ATTRIBUTES
+          value: "service.namespace=ipiece,service.name=ipiece-server,deployment.environment=prod"
+
+        # Metrics + Traces 활성화
+        - name: OTEL_METRICS_EXPORTER
+          value: "otlp"
+        - name: OTEL_TRACES_EXPORTER
+          value: "otlp"
+        - name: OTEL_LOGS_EXPORTER
+          value: "none"
+
         envFrom:
         - secretRef:
             name: ipiece-backend-env
+
         resources:
           requests:
             memory: "1Gi"
@@ -40,9 +67,11 @@ spec:
           limits:
             memory: "2Gi"
             cpu: "1000m"
-        
-        # ✅ [수정됨] Context Path가 /api로 설정되었으므로, 헬스체크 주소도 /api가 붙어야 함
-        # 기존 /healthz -> /api/healthz 로 변경
+
+        volumeMounts:
+        - name: otel-agent
+          mountPath: /otel
+
         livenessProbe:
           httpGet:
             path: /api/healthz
@@ -50,6 +79,7 @@ spec:
           initialDelaySeconds: 60
           periodSeconds: 10
           failureThreshold: 3
+
         readinessProbe:
           httpGet:
             path: /api/healthz
@@ -57,3 +87,11 @@ spec:
           initialDelaySeconds: 30
           periodSeconds: 5
           failureThreshold: 3
+
+      volumes:
+      - name: otel-agent
+        configMap:
+          name: otel-javaagent
+          items:
+            - key: opentelemetry-javaagent.jar
+              path: opentelemetry-javaagent.jar
