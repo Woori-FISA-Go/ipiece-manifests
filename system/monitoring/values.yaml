@@ -1,5 +1,3 @@
-# system/monitoring/values.yaml
-
 # ==========================================
 # 1. Prometheus
 # ==========================================
@@ -25,15 +23,12 @@ kube-prometheus-stack:
   grafana:
     enabled: true
     adminPassword: "admin"
-    # replicaCount는 기본 1이라 생략해도 되지만, 보기 좋게 명시
     replicaCount: 1
 
     grafana.ini:
       server:
-        # ✅ /grafana 서브패스로 서비스
         root_url: "%(protocol)s://%(domain)s/grafana/"
         serve_from_sub_path: true
-
       security:
         allow_embedding: true
       public_dashboards:
@@ -53,12 +48,11 @@ kube-prometheus-stack:
         url: http://ipiece-loki:3100/
         access: proxy
 
-  # 노드 메트릭 품질 향상
   nodeExporter:
     enabled: true
 
 # ==========================================
-# 2. Loki (Loki + S3 연동 수정본)
+# 2. Loki (S3 연동)
 # ==========================================
 loki-stack:
   promtail:
@@ -69,7 +63,6 @@ loki-stack:
     isDefault: false
     fullnameOverride: ipiece-loki
 
-    # 🔑 여기에서 실제 Pod 환경변수 주입
     env:
       - name: AWS_ACCESS_KEY_ID
         valueFrom:
@@ -82,7 +75,6 @@ loki-stack:
             name: loki-s3-secret
             key: S3_AWS_SECRET_ACCESS_KEY
 
-    # Loki 메인 설정 (지금 쓰고 있던 config 그대로 유지)
     config:
       auth_enabled: false
 
@@ -137,7 +129,6 @@ loki-stack:
         ingestion_rate_mb: 10
         ingestion_burst_size_mb: 20
 
-
 # ==========================================
 # 3. OTel Collector (DaemonSet)
 # ==========================================
@@ -188,7 +179,6 @@ otel:
         collection_interval: 10s
         metric_groups: [node, pod]
 
-      # K8s 이벤트 수집
       k8s_events:
         auth_type: "serviceAccount"
         namespaces: [default, monitoring, ipiece-frontend-prod]
@@ -202,7 +192,6 @@ otel:
         include_file_path: true
         include_file_name: false
 
-        # 자바 로그 멀티라인 통합
         multiline:
           line_start_pattern: '^\d{4}-\d{2}-\d{2}'
 
@@ -213,30 +202,37 @@ otel:
             timestamp:
               parse_from: attributes.time
               layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+
           - id: extract_metadata_from_filepath
             type: regex_parser
             parse_from: attributes["log.file.path"]
             regex: '^.*/(?P<namespace>[^_]+)_(?P<pod_name>.+)_(?P<pod_uid>[a-f0-9\-]{36})/(?P<container_name>.+)/(?P<restart_count>\d+)\.log$'
+
           - id: move-namespace
             type: move
             from: attributes["namespace"]
             to: resource["k8s.namespace.name"]
+
           - id: move-pod-name
             type: move
             from: attributes["pod_name"]
             to: resource["k8s.pod.name"]
+
           - id: move-pod-uid
             type: move
             from: attributes["pod_uid"]
             to: resource["k8s.pod.uid"]
+
           - id: move-container-name
             type: move
             from: attributes["container_name"]
             to: resource["k8s.container.name"]
+
           - id: move-restart-count
             type: move
             from: attributes["restart_count"]
             to: resource["k8s.container.restart_count"]
+
           - id: clean-up-body
             type: move
             from: attributes["log"]
@@ -319,3 +315,61 @@ otel:
       - apiGroups: ["extensions"]
         resources: ["replicasets"]
         verbs: ["get", "list", "watch"]
+
+# ==========================================
+# 4. OTel Collector Gateway (중요 — Java OTLP 수신)
+# ==========================================
+otel-collector-gateway:
+  enabled: true
+  mode: deployment
+
+  image:
+    repository: otel/opentelemetry-collector-contrib
+    tag: "0.91.0"
+
+  service:
+    type: ClusterIP
+    ports:
+      otlp-grpc: 4317
+      otlp-http: 4318
+
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    processors:
+      batch:
+        timeout: 5s
+
+    exporters:
+      prometheusremotewrite:
+        endpoint: "http://prometheus-operated.monitoring:9090/api/v1/write"
+        tls:
+          insecure: true
+
+      loki:
+        endpoint: "http://ipiece-loki.monitoring:3100/loki/api/v1/push"
+        tls:
+          insecure: true
+
+    service:
+      pipelines:
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [prometheusremotewrite]
+
+        logs:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [loki]
+
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: []

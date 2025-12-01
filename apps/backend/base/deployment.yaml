@@ -18,9 +18,6 @@ spec:
       imagePullSecrets:
         - name: ecr-secret
 
-      # ===========================================
-      # 1) OTel Java Agent 다운로드 initContainer
-      # ===========================================
       initContainers:
         - name: download-otel-agent
           image: curlimages/curl:latest
@@ -40,15 +37,11 @@ spec:
             - containerPort: 8080
               name: http
 
-          # ===========================================
-          # 2) Java 실행 override (가장 중요!!)
-          # ===========================================
           command: ["java"]
           args:
             - "-javaagent:/otel/opentelemetry-javaagent.jar"
             - "-jar"
             - "/app/app.jar"
-          # ===========================================
 
           env:
             - name: SPRING_PROFILES_ACTIVE
@@ -57,17 +50,14 @@ spec:
             - name: SERVER_SERVLET_CONTEXT_PATH
               value: "/api"
 
-            # ===========================================
-            # 3) OTel Exporter 설정
-            # ===========================================
+            # ================================
+            #   OTEL Exporter (Gateway Only)
+            # ================================
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "http://ipiece-monitoring-otel.monitoring.svc.cluster.local:4317"
+              value: "http://ipiece-otel-gateway.monitoring.svc.cluster.local:4317"
 
             - name: OTEL_EXPORTER_OTLP_PROTOCOL
               value: "grpc"
-
-            - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
-              value: "http://ipiece-monitoring-otel.monitoring.svc.cluster.local:4317"
 
             - name: OTEL_SERVICE_NAME
               value: "ipiece-server"
