@@ -1,19 +1,19 @@
 # ==========================================
-# 1. Prometheus
+# 1. Prometheus + Grafana
 # ==========================================
 kube-prometheus-stack:
   prometheus:
     prometheusSpec:
-      # DaemonSet OTel Agent에서 metrics를 PULL로 가져옴
+      enableRemoteWriteReceiver: true
+      retention: 15d
+
+      # DaemonSet OTel Agent → Prometheus Pull
       scrapeConfigs:
-        - job_name: 'otel-agent'
+        - job_name: "otel-agent"
           metrics_path: /metrics
           static_configs:
             - targets:
                 - "ipiece-otel-agent.monitoring.svc.cluster.local:8888"
-
-      enableRemoteWriteReceiver: true
-      retention: 15d
 
       storageSpec:
         volumeClaimTemplate:
@@ -24,16 +24,10 @@ kube-prometheus-stack:
               requests:
                 storage: 50Gi
 
-      resources:
-        requests:
-          memory: 1Gi
-        limits:
-          memory: 2Gi
-
   grafana:
     enabled: true
-    adminPassword: "admin"
     replicaCount: 1
+    adminPassword: "admin"
 
     grafana.ini:
       server:
@@ -62,6 +56,7 @@ kube-prometheus-stack:
     enabled: true
 
 
+
 # ==========================================
 # 2. Loki (S3 연동)
 # ==========================================
@@ -80,7 +75,6 @@ loki-stack:
           secretKeyRef:
             name: loki-s3-secret
             key: S3_AWS_ACCESS_KEY_ID
-
       - name: AWS_SECRET_ACCESS_KEY
         valueFrom:
           secretKeyRef:
@@ -143,8 +137,10 @@ loki-stack:
         ingestion_burst_size_mb: 20
 
 
+
+
 # ==========================================
-# 3. OTel Collector (DaemonSet)
+# 3. OTel Collector AGENT (DaemonSet)
 # ==========================================
 otel:
   mode: daemonset
@@ -208,12 +204,12 @@ otel:
       filelog:
         include:
           - /var/log/pods/*/*/*.log
-        start_at: end
         include_file_path: true
         include_file_name: false
+        start_at: end
 
         multiline:
-          line_start_pattern: '^\d{4}-\d{2}-\d{2}'
+          line_start_pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}"
 
         operators:
           - id: parser-cri
@@ -305,12 +301,17 @@ otel:
         tls:
           insecure: true
 
+      prometheusremotewrite:
+        endpoint: "http://prometheus-operated.monitoring:9090/api/v1/write"
+        tls:
+          insecure: true
+
     service:
       pipelines:
         metrics:
           receivers: [hostmetrics, kubeletstats]
           processors: [batch]
-          exporters: []
+          exporters: [prometheusremotewrite]
 
         logs:
           receivers: [filelog, otlp, k8s_events]
@@ -324,7 +325,7 @@ otel:
     create: true
     rules:
       - apiGroups: [""]
-        resources: ["nodes", "nodes/stats", "services", "endpoints", "pods", "namespaces", "nodes/proxy", "events"]
+        resources: ["nodes", "nodes/stats", "pods", "namespaces", "nodes/proxy", "events"]
         verbs: ["get", "watch", "list"]
       - apiGroups: ["apps"]
         resources: ["replicasets"]
@@ -334,8 +335,10 @@ otel:
         verbs: ["get", "list", "watch"]
 
 
+
+
 # ==========================================
-# 4. OTel Gateway (Java OTLP 수신)
+# 4. OTel Collector GATEWAY (Java OTLP)
 # ==========================================
 otel-collector-gateway:
   enabled: true
