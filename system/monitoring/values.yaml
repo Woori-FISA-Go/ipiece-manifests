@@ -138,7 +138,6 @@ loki-stack:
 
 # ==========================================
 # 3. OTel Collector AGENT (DaemonSet)
-# (로그 파이프라인 메타데이터 추가 설정 복원됨)
 # ==========================================
 otel:
   mode: daemonset
@@ -201,9 +200,8 @@ otel:
         include_file_path: true
         include_file_name: false
         start_at: end
-
         multiline:
-          line_start_pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}" # CRI 로그 타임스탬프 패턴
+          line_start_pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}"
 
         operators:
           - id: parser-cri
@@ -218,7 +216,6 @@ otel:
             parse_from: attributes["log.file.path"]
             regex: '^.*/(?P<namespace>[^_]+)_(?P<pod_name>.+)_(?P<pod_uid>[a-f0-9\-]{36})/(?P<container_name>.+)/(?P<restart_count>\d+)\.log$'
 
-          # 필드 이동 오퍼레이터 (로그에 K8s 메타데이터 추가)
           - id: move-namespace
             type: move
             from: attributes["namespace"]
@@ -231,11 +228,12 @@ otel:
             type: move
             from: attributes["container_name"]
             to: resource["k8s.container.name"]
-          - id: clean-up-body # 로그 본문 추출
+          - id: clean-up-body
             type: move
             from: attributes["log"]
             to: body
 
+      # [수정됨] Receiver에는 protocols 키가 필요합니다 (정상)
       otlp:
         protocols:
           grpc:
@@ -244,14 +242,14 @@ otel:
             endpoint: 0.0.0.0:4318
 
     processors:
-      memory_limiter: # 메모리 제한
+      memory_limiter:
         check_interval: 1s
         limit_mib: 450
         spike_limit_mib: 128
-        
-      batch: {} # 기본 배치 프로세서
+      
+      batch: {}
 
-      k8sattributes: # K8s 메타데이터 인리치먼트
+      k8sattributes:
         auth_type: "serviceAccount"
         passthrough: false
         extract:
@@ -268,7 +266,7 @@ otel:
       resourcedetection:
         detectors: [env, system, ec2]
 
-      resource: # Loki 레이블 정의
+      resource:
         attributes:
           - key: loki.resource.labels
             action: insert
@@ -280,6 +278,7 @@ otel:
         tls:
           insecure: true
 
+      # [수정됨] Exporter에는 protocols 키를 사용하지 않습니다. endpoint만 지정합니다.
       otlp:
         endpoint: "ipiece-otel-collector-gateway.monitoring.svc.cluster.local:4317"
         tls:
@@ -292,7 +291,7 @@ otel:
           processors: [batch]
           exporters: [otlp]
           
-        logs: # 복원된 로그 파이프라인
+        logs:
           receivers: [filelog, otlp]
           processors: [memory_limiter, k8sattributes, resource, batch, resourcedetection]
           exporters: [loki]
@@ -365,5 +364,3 @@ otel-collector-gateway:
           receivers: [otlp]
           processors: [batch]
           exporters: [loki]
-
-        # traces 파이프라인은 exporters가 없어 제거되었습니다.
