@@ -6,33 +6,27 @@ metadata:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/group.name: ipiece
-    alb.ingress.kubernetes.io/group.order: "20"   # 이것도 뒤
+    alb.ingress.kubernetes.io/group.order: "20"
     alb.ingress.kubernetes.io/healthcheck-path: /api/healthz
-
-    # 🔥 WebSocket/롱폴링 끊김 방지를 위한 Idle Timeout 튜닝 (기본 60초 → 1시간)
     alb.ingress.kubernetes.io/load-balancer-attributes: "idle_timeout.timeout_seconds=3600"
-
-    # 🔥 (옵션) 같은 유저를 같은 파드로 보내는 Sticky Session
     alb.ingress.kubernetes.io/target-group-attributes: "stickiness.enabled=true,stickiness.lb_cookie.duration_seconds=3600"
-
-    # ✅ HTTP(80) + HTTPS(443) 리스너 둘 다 활성화
-    #    → HTTP 절대 안 꺼짐, 기존처럼 계속 사용 가능
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
-
-    # ✅ 프론트와 동일한 ACM 인증서 사용 (ipiece.store)
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
     alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:235625001959:certificate/ad38efac-da2d-494f-9bcb-8db272d92577
-
-    # ✅ Backend도 같은 도메인 사용
     external-dns.alpha.kubernetes.io/hostname: ipiece.store
-    
 spec:
   ingressClassName: alb
   rules:
-    # ✅ 호스트 명시
     - host: ipiece.store
       http:
         paths:
           - path: /api/
+            pathType: Prefix
+            backend:
+              service:
+                name: ipiece-server
+                port:
+                  number: 80
+          - path: /api/actuator/
             pathType: Prefix
             backend:
               service:
