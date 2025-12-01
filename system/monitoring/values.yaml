@@ -280,7 +280,7 @@ otel:
 
       # [수정됨] Exporter에는 protocols 키를 사용하지 않습니다. endpoint만 지정합니다.
       otlp:
-        endpoint: "ipiece-otel-collector-gateway.monitoring.svc.cluster.local:4317"
+        endpoint: "ipiece-monitoring-otel-collector-gateway.monitoring.svc.cluster.local:4317"
         tls:
           insecure: true
 
