@@ -1,6 +1,6 @@
 # IPiece Kubernetes Manifests
 
-IPiece 프로젝트의 **Kubernetes 인프라**를 정의하는 GitOps 저장소입니다.
+IPiece 프로젝트의 **Kubernetes 인프라**를 정의하는 GitOps 저장소입니다. 
 
 - 모든 워크로드는 **Argo CD**를 통해 EKS 클러스터와 동기화됩니다.
 - 애플리케이션별 Kubernetes 리소스는 **Kustomize**로 Dev / Prod 환경을 분리해 관리합니다.
