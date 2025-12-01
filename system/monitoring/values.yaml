@@ -301,8 +301,18 @@ otel:
         tls:
           insecure: true
 
+      otlp:
+        endpoint: "ipiece-otel-collector-gateway.monitoring.svc.cluster.local:4317"
+        tls:
+          insecure: true
+
     service:
       pipelines:
+        metrics:
+          receivers: [hostmetrics, kubeletstats]
+          processors: [batch]
+          exporters: [otlp]
+          
         logs:
           receivers: [filelog, otlp, k8s_events]
           processors: [memory_limiter, k8sattributes, resource, batch, resourcedetection]
