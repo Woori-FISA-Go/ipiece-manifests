@@ -4,8 +4,17 @@
 kube-prometheus-stack:
   prometheus:
     prometheusSpec:
+      # DaemonSet OTel Agent에서 metrics를 PULL로 가져옴
+      scrapeConfigs:
+        - job_name: 'otel-agent'
+          metrics_path: /metrics
+          static_configs:
+            - targets:
+                - "ipiece-otel-agent.monitoring.svc.cluster.local:8888"
+
       enableRemoteWriteReceiver: true
       retention: 15d
+
       storageSpec:
         volumeClaimTemplate:
           spec:
@@ -14,6 +23,7 @@ kube-prometheus-stack:
             resources:
               requests:
                 storage: 50Gi
+
       resources:
         requests:
           memory: 1Gi
@@ -51,6 +61,7 @@ kube-prometheus-stack:
   nodeExporter:
     enabled: true
 
+
 # ==========================================
 # 2. Loki (S3 연동)
 # ==========================================
@@ -69,6 +80,7 @@ loki-stack:
           secretKeyRef:
             name: loki-s3-secret
             key: S3_AWS_ACCESS_KEY_ID
+
       - name: AWS_SECRET_ACCESS_KEY
         valueFrom:
           secretKeyRef:
@@ -114,6 +126,7 @@ loki-stack:
           region: ap-northeast-2
           s3forcepathstyle: false
           insecure: false
+
         boltdb_shipper:
           shared_store: s3
           active_index_directory: /data/loki/index
@@ -129,6 +142,7 @@ loki-stack:
         ingestion_rate_mb: 10
         ingestion_burst_size_mb: 20
 
+
 # ==========================================
 # 3. OTel Collector (DaemonSet)
 # ==========================================
@@ -140,17 +154,25 @@ otel:
 
   extraEnvs:
     - name: K8S_NODE_NAME
-      valueFrom: { fieldRef: { fieldPath: spec.nodeName } }
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
     - name: K8S_POD_NAME
-      valueFrom: { fieldRef: { fieldPath: metadata.name } }
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.name
     - name: K8S_NAMESPACE
-      valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.namespace
 
   extraVolumes:
     - name: varlog
-      hostPath: { path: /var/log }
+      hostPath:
+        path: /var/log
     - name: varlibdockercontainers
-      hostPath: { path: /var/lib/docker/containers }
+      hostPath:
+        path: /var/lib/docker/containers
 
   extraVolumeMounts:
     - name: varlog
@@ -186,8 +208,6 @@ otel:
       filelog:
         include:
           - /var/log/pods/*/*/*.log
-        exclude:
-          - /var/log/pods/monitoring_ipiece-monitoring-otel-agent-*/*/otel/*.log
         start_at: end
         include_file_path: true
         include_file_name: false
@@ -240,8 +260,10 @@ otel:
 
       otlp:
         protocols:
-          grpc: { endpoint: 0.0.0.0:4317 }
-          http: { endpoint: 0.0.0.0:4318 }
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
 
     processors:
       memory_limiter:
@@ -278,11 +300,6 @@ otel:
             value: k8s.namespace.name, k8s.pod.name, k8s.container.name, k8s.node.name, cloud.availability_zone
 
     exporters:
-      prometheusremotewrite:
-        endpoint: "http://prometheus-operated.monitoring:9090/api/v1/write"
-        tls:
-          insecure: true
-
       loki:
         endpoint: "http://ipiece-loki.monitoring:3100/loki/api/v1/push"
         tls:
@@ -291,9 +308,9 @@ otel:
     service:
       pipelines:
         metrics:
-          receivers: [hostmetrics, kubeletstats, otlp]
-          processors: [memory_limiter, k8sattributes, batch, resourcedetection]
-          exporters: [prometheusremotewrite]
+          receivers: [hostmetrics, kubeletstats]
+          processors: [batch]
+          exporters: []
 
         logs:
           receivers: [filelog, otlp, k8s_events]
@@ -316,8 +333,9 @@ otel:
         resources: ["replicasets"]
         verbs: ["get", "list", "watch"]
 
+
 # ==========================================
-# 4. OTel Collector Gateway (중요 — Java OTLP 수신)
+# 4. OTel Gateway (Java OTLP 수신)
 # ==========================================
 otel-collector-gateway:
   enabled: true
@@ -347,13 +365,13 @@ otel-collector-gateway:
         timeout: 5s
 
     exporters:
-      prometheusremotewrite:
-        endpoint: "http://prometheus-operated.monitoring:9090/api/v1/write"
+      loki:
+        endpoint: "http://ipiece-loki.monitoring:3100/loki/api/v1/push"
         tls:
           insecure: true
 
-      loki:
-        endpoint: "http://ipiece-loki.monitoring:3100/loki/api/v1/push"
+      prometheusremotewrite:
+        endpoint: "http://prometheus-operated.monitoring:9090/api/v1/write"
         tls:
           insecure: true
 
