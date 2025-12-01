@@ -61,7 +61,7 @@ spec:
             # 3) OTel Exporter 설정
             # ===========================================
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "http://ipiece-monitoring-otel-agent.monitoring.svc.cluster.local:4317"
+              value: "http://ipiece-monitoring-otel.monitoring.svc.cluster.local:4317"
 
             - name: OTEL_SERVICE_NAME
               value: "ipiece-server"
