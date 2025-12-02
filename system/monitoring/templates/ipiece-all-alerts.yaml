@@ -104,7 +104,7 @@ spec:
         service: ipiece-backend
       annotations:
         summary: "노드별 5xx 비율 1% 초과"
-        description: "노드 {{`{{`}} $labels.k8s_node_name {{`}}`}} 에러율={{`{{`}} printf \"%.2f\" (mul $value 100) {{`}}`}}% (RPS>1인 노드만 대상)"
+        description: "노드 {{`{{`}} $labels.k8s_node_name {{`}}`}} 에러율={{`{{`}} printf \"%.2f\" $value {{`}}`}}% (RPS>1인 노드만 대상)"
 
     # 3) 평균 레이턴시 1초 이상 + RPS>1 인 엔드포인트
     - alert: BackendSlowEndpointAvgLatency
