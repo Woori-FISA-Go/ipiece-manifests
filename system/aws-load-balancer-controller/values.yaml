@@ -8,3 +8,12 @@
     name: aws-load-balancer-controller
     annotations:
       eks.amazonaws.com/role-arn: arn:aws:iam::235625001959:role/aws-load-balancer-controller
+
+  # 🔽 system 노드에서만 띄우기
+  nodeSelector:
+    node-role.kubernetes.io/system: "true"
+  tolerations:
+    - key: "system"
+      operator: "Equal"
+      value: "core"
+      effect: "NoSchedule"

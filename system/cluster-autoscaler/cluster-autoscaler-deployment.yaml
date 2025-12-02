@@ -19,6 +19,15 @@ spec:
         cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
     spec:
       serviceAccountName: cluster-autoscaler
+
+      nodeSelector:
+        node-role.kubernetes.io/system: "true"
+      tolerations:
+        - key: "system"
+          operator: "Equal"
+          value: "core"
+          effect: "NoSchedule"
+
       containers:
         - name: cluster-autoscaler
           image: registry.k8s.io/autoscaling/cluster-autoscaler:v1.30.0

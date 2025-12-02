@@ -7,6 +7,15 @@ kube-prometheus-stack:
       enableRemoteWriteReceiver: true
       retention: 15d
 
+      # 🔹 Prometheus는 system 노드에 고정
+      nodeSelector:
+        node-role.kubernetes.io/system: "true"
+      tolerations:
+        - key: "system"
+          operator: "Equal"
+          value: "core"
+          effect: "NoSchedule"
+
       # DaemonSet OTel Agent → Prometheus Pull (Agent 자체 메트릭 수집)
       scrapeConfigs:
         - job_name: "otel-agent"
@@ -28,6 +37,15 @@ kube-prometheus-stack:
     enabled: true
     replicaCount: 1
     adminPassword: "admin"
+
+    # 🔹 Grafana도 system 노드에 고정
+    nodeSelector:
+      node-role.kubernetes.io/system: "true"
+    tolerations:
+      - key: "system"
+        operator: "Equal"
+        value: "core"
+        effect: "NoSchedule"
 
     grafana.ini:
       server:
@@ -52,8 +70,26 @@ kube-prometheus-stack:
         url: http://ipiece-loki:3100/
         access: proxy
 
+  # 🔹 nodeExporter = DaemonSet (모든 노드에서 떠야 함)
+  #    → system taint 된 노드에서도 잘 돌 수 있게 tolerations만 추가
   nodeExporter:
     enabled: true
+    tolerations:
+      - key: "system"
+        operator: "Equal"
+        value: "core"
+        effect: "NoSchedule"
+
+  # 🔹 kube-state-metrics는 "시스템 컴포넌트"니까 system 노드에 고정
+  kube-state-metrics:
+    nodeSelector:
+      node-role.kubernetes.io/system: "true"
+    tolerations:
+      - key: "system"
+        operator: "Equal"
+        value: "core"
+        effect: "NoSchedule"
+
 
   # ===== Alertmanager + Slack =====
   alertmanager:
@@ -93,6 +129,15 @@ loki-stack:
     enabled: true
     isDefault: false
     fullnameOverride: ipiece-loki
+
+    # 🔹 Loki도 system 노드에 고정
+    nodeSelector:
+      node-role.kubernetes.io/system: "true"
+    tolerations:
+      - key: "system"
+        operator: "Equal"
+        value: "core"
+        effect: "NoSchedule"
 
     env:
       - name: AWS_ACCESS_KEY_ID
@@ -169,6 +214,15 @@ otel:
   image:
     repository: otel/opentelemetry-collector-contrib
     tag: "0.91.0"
+
+  # 🔹 DaemonSet라서 "모든 노드"에 떠야 함
+  #    → nodeSelector는 걸지 말고,
+  #      system 노드에 taint가 있어도 버티도록 tolerations만 추가
+  tolerations:
+    - key: "system"
+      operator: "Equal"
+      value: "core"
+      effect: "NoSchedule"
 
   extraEnvs:
     - name: K8S_NODE_NAME
@@ -350,6 +404,15 @@ otel-collector-gateway:
 
   service:
     type: ClusterIP
+
+  # 🔹 Gateway는 "인프라 컴포넌트"니까 system 노드에만 띄움
+  nodeSelector:
+    node-role.kubernetes.io/system: "true"
+  tolerations:
+    - key: "system"
+      operator: "Equal"
+      value: "core"
+      effect: "NoSchedule"
 
   config:
     receivers:

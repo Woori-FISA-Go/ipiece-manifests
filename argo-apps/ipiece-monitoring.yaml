@@ -26,28 +26,29 @@ spec:
       - CreateNamespace=true
       - ServerSideApply=true
 
-ignoreDifferences:
-  - group: apiextensions.k8s.io
-    kind: CustomResourceDefinition
-    name: alertmanagers.monitoring.coreos.com
-    jsonPointers:
-      - /metadata/annotations
-      - /spec
-  - group: apiextensions.k8s.io
-    kind: CustomResourceDefinition
-    name: prometheusagents.monitoring.coreos.com
-    jsonPointers:
-      - /metadata/annotations
-      - /spec
-  - group: apiextensions.k8s.io
-    kind: CustomResourceDefinition
-    name: prometheuses.monitoring.coreos.com
-    jsonPointers:
-      - /metadata/annotations
-      - /spec
-  - group: apiextensions.k8s.io
-    kind: CustomResourceDefinition
-    name: thanosrulers.monitoring.coreos.com
-    jsonPointers:
-      - /metadata/annotations
-      - /spec
+  # ⬇⬇⬇ 여기! spec 안으로 들여쓰기
+  ignoreDifferences:
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: alertmanagers.monitoring.coreos.com
+      jsonPointers:
+        - /metadata/annotations
+        - /spec
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: prometheusagents.monitoring.coreos.com
+      jsonPointers:
+        - /metadata/annotations
+        - /spec
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: prometheuses.monitoring.coreos.com
+      jsonPointers:
+        - /metadata/annotations
+        - /spec
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: thanosrulers.monitoring.coreos.com
+      jsonPointers:
+        - /metadata/annotations
+        - /spec

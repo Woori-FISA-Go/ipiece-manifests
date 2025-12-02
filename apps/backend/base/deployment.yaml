@@ -18,6 +18,26 @@ spec:
       imagePullSecrets:
         - name: ecr-secret
 
+      # 🔽 워크로드 전용 노드로 보내기
+      nodeSelector:
+        node-role.kubernetes.io/workload: "true"
+
+      # 🔽 AZ / 노드 분산
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: ipiece-server
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: ipiece-server
+      # 🔼
+
       initContainers:
         - name: download-otel-agent
           image: curlimages/curl:latest

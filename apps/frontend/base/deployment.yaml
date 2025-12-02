@@ -16,6 +16,25 @@ spec:
       labels:
         app: ipiece-frontend
     spec:
+      # 🔽 워크로드 전용 노드
+      nodeSelector:
+        node-role.kubernetes.io/workload: "true"
+
+      # 🔽 AZ / 노드 분산
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: ipiece-frontend
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: ipiece-frontend
+      # 🔼
       containers:
         - name: ipiece-frontend
           # 🔥 [수정됨] Kustomize가 이 이름을 찾아서 ECR 주소로 바꿉니다.
