@@ -287,7 +287,7 @@ otel:
     service:
       pipelines:
         metrics:
-          receivers: [hostmetrics, kubeletstats]
+          receivers: [hostmetrics, kubeletstats, otlp]
           processors: [batch]
           exporters: [otlp]
           
