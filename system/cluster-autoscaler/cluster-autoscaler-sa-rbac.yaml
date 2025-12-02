@@ -5,7 +5,6 @@ metadata:
   name: cluster-autoscaler
   namespace: kube-system
   annotations:
-    # 🔥 IRSA용 IAM Role (별도로 생성 필요)
     eks.amazonaws.com/role-arn: arn:aws:iam::235625001959:role/ipiece-cluster-autoscaler-role
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -18,51 +17,82 @@ rules:
     resources: ["events", "endpoints"]
     verbs: ["create", "patch"]
 
-  # 기본 리소스 + replicationcontrollers
+  # Pod Eviction
+  - apiGroups: [""]
+    resources: ["pods/eviction"]
+    verbs: ["create"]
+
+  # Pod Status 업데이트
+  - apiGroups: [""]
+    resources: ["pods/status"]
+    verbs: ["update"]
+
+  # 자신의 Endpoints 업데이트
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    resourceNames: ["cluster-autoscaler"]
+    verbs: ["get", "update"]
+
+  # 노드: taint 붙이려면 update 필수
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["watch", "list", "get", "update"]
+
+  # 기본 리소스 + RC, PVC, PV
   - apiGroups: [""]
     resources:
-      - pods/status
-      - pods
-      - services
-      - nodes
-      - namespaces
-      - replicationcontrollers
-    verbs: ["get", "list", "watch"]
+      - "pods"
+      - "services"
+      - "replicationcontrollers"
+      - "persistentvolumeclaims"
+      - "persistentvolumes"
+    verbs: ["watch", "list", "get"]
 
-  # ReplicaSet / StatefulSet / DaemonSet
-  - apiGroups: ["apps"]
-    resources:
-      - replicasets
-      - statefulsets
-      - daemonsets
-    verbs: ["get", "list", "watch"]
-
-  # Job
-  - apiGroups: ["batch"]
-    resources:
-      - jobs
-    verbs: ["get", "list", "watch"]
+  # ReplicaSet / DaemonSet (extensions)
+  - apiGroups: ["extensions"]
+    resources: ["replicasets", "daemonsets"]
+    verbs: ["watch", "list", "get"]
 
   # PodDisruptionBudget
   - apiGroups: ["policy"]
-    resources:
-      - poddisruptionbudgets
-    verbs: ["get", "list", "watch"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["watch", "list"]
 
-  # PVC / PV
-  - apiGroups: [""]
-    resources: ["persistentvolumeclaims", "persistentvolumes"]
-    verbs: ["get", "list", "watch"]
+  # ReplicaSet / StatefulSet / DaemonSet (apps)
+  - apiGroups: ["apps"]
+    resources: ["statefulsets", "replicasets", "daemonsets"]
+    verbs: ["watch", "list", "get"]
 
   # 스토리지 관련
   - apiGroups: ["storage.k8s.io"]
-    resources: ["storageclasses", "csinodes", "csidrivers", "csistoragecapacities"]
-    verbs: ["get", "list", "watch"]
+    resources: ["storageclasses", "csinodes"]
+    verbs: ["watch", "list", "get"]
 
-  # 리스 (leader election)
+  # Job
+  - apiGroups: ["batch", "extensions"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "patch"]
+
+  # Lease (leader election)
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
-    verbs: ["create", "get", "list", "watch", "update"]
+    verbs: ["create"]
+
+  - apiGroups: ["coordination.k8s.io"]
+    resourceNames: ["cluster-autoscaler"]
+    resources: ["leases"]
+    verbs: ["get", "update"]
+---
+# kube-system 안에서 ConfigMap 등 접근 (지금 쓰는 Role은 그대로 둬도 OK)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cluster-autoscaler
+  namespace: kube-system
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["create", "list", "watch", "get", "update", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -76,17 +106,6 @@ subjects:
   - kind: ServiceAccount
     name: cluster-autoscaler
     namespace: kube-system
----
-# kube-system 안에서 ConfigMap 등 접근
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: cluster-autoscaler
-  namespace: kube-system
-rules:
-  - apiGroups: [""]
-    resources: ["configmaps"]
-    verbs: ["create", "list", "watch", "get", "update", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
