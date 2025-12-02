@@ -3,10 +3,10 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - ../../base
-  - hpa.yaml    # 🔥 추가
+- ../../base
+- hpa.yaml
 
 images:
-  - name: ipiece-frontend
-    newName: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-frontend
-    newTag: 3be2f6cd2a4c84d2fc22d41d532d2970dbd906b5-19808065788-1
+- name: ipiece-frontend
+  newName: 235625001959.dkr.ecr.ap-northeast-2.amazonaws.com/ipiece-frontend
+  newTag: b8d92db0468c73f83b785047d632fc58d1f3b827-19851235973-1
