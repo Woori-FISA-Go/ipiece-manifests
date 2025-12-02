@@ -1,5 +1,5 @@
 # ==========================================
-# 1. Prometheus + Grafana
+# 1. Prometheus + Grafana + Alertmanager
 # ==========================================
 kube-prometheus-stack:
   prometheus:
@@ -55,6 +55,32 @@ kube-prometheus-stack:
   nodeExporter:
     enabled: true
 
+  # ===== Alertmanager + Slack =====
+  alertmanager:
+    extraSecretMounts:
+      - name: slack-webhook
+        secretName: alertmanager-slack-webhook
+        mountPath: /etc/alertmanager/secrets
+        readOnly: true
+
+    config:
+      global:
+        resolve_timeout: 5m
+        # Secret 파일에서 Webhook URL 읽기
+        slack_api_url_file: /etc/alertmanager/secrets/slack_api_url
+
+      route:
+        receiver: "slack-main"
+        group_by: ['alertname', 'service']
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 4h
+
+      receivers:
+        - name: "slack-main"
+          slack_configs:
+            - channel: "#ipiece-alarm"   # 실제 슬랙 채널명으로 변경 가능
+              send_resolved: true
 
 # ==========================================
 # 2. Loki (S3 연동)
@@ -135,7 +161,6 @@ loki-stack:
         ingestion_rate_mb: 10
         ingestion_burst_size_mb: 20
 
-
 # ==========================================
 # 3. OTel Collector AGENT (DaemonSet)
 # ==========================================
@@ -214,7 +239,7 @@ otel:
           - id: extract_metadata_from_filepath
             type: regex_parser
             parse_from: attributes["log.file.path"]
-            regex: '^.*/(?P<namespace>[^_]+)_(?P<pod_name>.+)_(?P<pod_uid>[a-f0-9\-]{36})/(?P<container_name>.+)/(?P<restart_count>\d+)\.log$'
+            regex: '^.*/(?P<namespace>[^_]+)_(?P<pod_name>.+)_(?P<pod_uid>[a-f0-9\-]{36})/(?Ptainer_name>.+)/(?P<restart_count>\d+)\.log$'
 
           - id: move-namespace
             type: move
@@ -246,7 +271,7 @@ otel:
         check_interval: 1s
         limit_mib: 450
         spike_limit_mib: 128
-      
+
       batch: {}
 
       k8sattributes:
@@ -290,7 +315,7 @@ otel:
           receivers: [hostmetrics, kubeletstats, otlp]
           processors: [batch]
           exporters: [otlp]
-          
+
         logs:
           receivers: [filelog, otlp]
           processors: [memory_limiter, k8sattributes, resource, batch, resourcedetection]
@@ -311,7 +336,6 @@ otel:
       - apiGroups: ["extensions"]
         resources: ["replicasets"]
         verbs: ["get", "list", "watch"]
-
 
 # ==========================================
 # 4. OTel Collector GATEWAY (Java OTLP)
