@@ -1,0 +1,22 @@
+# apps/frontend/overlays/prod/hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ipiece-frontend
+  namespace: ipiece-frontend-prod
+  labels:
+    app: ipiece-frontend
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ipiece-frontend
+  minReplicas: 2      # 지금 deployment가 2라서 맞춰 줌
+  maxReplicas: 6      # 프론트는 백보다 작게 잡아도 됨
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50

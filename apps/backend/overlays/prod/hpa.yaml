@@ -1,0 +1,21 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ipiece-server
+  namespace: default
+  labels:
+    app: ipiece-server
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ipiece-server
+  minReplicas: 2        # 지금처럼 최소 2개 유지
+  maxReplicas: 10       # 네가 쓰던 값 그대로
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50   # cpu: 1%/50% 이거에 해당

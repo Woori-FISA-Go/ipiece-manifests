@@ -1,0 +1,62 @@
+# system/cluster-autoscaler/cluster-autoscaler-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cluster-autoscaler
+  namespace: kube-system
+  labels:
+    app: cluster-autoscaler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cluster-autoscaler
+  template:
+    metadata:
+      labels:
+        app: cluster-autoscaler
+      annotations:
+        cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+    spec:
+      serviceAccountName: cluster-autoscaler
+      containers:
+        - name: cluster-autoscaler
+          image: registry.k8s.io/autoscaling/cluster-autoscaler:v1.30.0
+          # ↑ 버전은 K8s/EKS 버전에 맞춰 바꿔도 됨
+          resources:
+            limits:
+              cpu: 100m
+              memory: 300Mi
+            requests:
+              cpu: 100m
+              memory: 300Mi
+          command:
+            - ./cluster-autoscaler
+          args:
+            - --cloud-provider=aws
+            - --cluster-name=ipiece-cluster1
+
+            # 🔥 ASG 태그 기반 노드 그룹 자동 발견 (콘솔에 단 태그와 맞춤)
+            #   k8s.io/cluster-autoscaler/enabled = true
+            #   k8s.io/cluster-autoscaler/ipiece-cluster1 = owned
+            - --node-group-auto-discovery=asg:tag=k8s.io/cluster-autoscaler/enabled,k8s.io/cluster-autoscaler/ipiece-cluster1
+
+            - --balance-similar-node-groups=true
+            - --skip-nodes-with-local-storage=false
+            - --skip-nodes-with-system-pods=false
+            - --expander=least-waste
+            - --stderrthreshold=info
+            - --v=4
+          env:
+            - name: AWS_REGION
+              value: ap-northeast-2
+          volumeMounts:
+            - name: ssl-certs
+              mountPath: /etc/ssl/certs/ca-certificates.crt
+              readOnly: true
+          imagePullPolicy: Always
+      volumes:
+        - name: ssl-certs
+          hostPath:
+            path: /etc/ssl/certs/ca-bundle.crt
+            type: FileOrCreate
