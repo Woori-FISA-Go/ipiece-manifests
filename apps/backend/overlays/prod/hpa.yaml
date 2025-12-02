@@ -10,12 +10,31 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: ipiece-server
-  minReplicas: 4        # 지금처럼 최소 2개 유지
-  maxReplicas: 10       # 네가 쓰던 값 그대로
+
+  # 🔹 워커 노드 4대 기준
+  minReplicas: 4          # 기본 4개 유지 (각 노드 1개 이상)
+  maxReplicas: 20         # 피크 시 여유
+
+  # 🔹 CPU 사용률 기준 오토스케일링
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 50   # cpu: 1%/50% 이거에 해당
+          averageUtilization: 65   # 50 → 65 (조금 덜 예민하게)
+
+  # 🔹 과민반응/바운싱 방지용 Behavior 설정
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60   # 최근 60초 추세를 보고 확장
+      policies:
+        - type: Percent
+          value: 100                   # 한 번에 최대 2배까지 증가
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300  # 최근 5분 동안 추세를 보고 축소
+      policies:
+        - type: Percent
+          value: 50                    # 한 번에 최대 50%까지만 감소
+          periodSeconds: 60

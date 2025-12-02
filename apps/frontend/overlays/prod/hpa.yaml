@@ -1,4 +1,3 @@
-# apps/frontend/overlays/prod/hpa.yaml
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -11,12 +10,30 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: ipiece-frontend
-  minReplicas: 2      # 지금 deployment가 2라서 맞춰 줌
-  maxReplicas: 6      # 프론트는 백보다 작게 잡아도 됨
+
+  # 🔹 기본 3개, 최대 10개
+  minReplicas: 2
+  maxReplicas: 10
+
+  # 🔹 CPU 기준
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 50
+          averageUtilization: 60  # 50 → 60
+
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Percent
+          value: 100          # 최대 2배까지
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 60
