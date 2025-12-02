@@ -95,29 +95,32 @@ spec:
               memory: "2Gi"
               cpu: "1000m"
 
-          # 🟢 앱이 완전히 뜰 때까지는 liveness/readiness 체크 안 하도록
+          # 🟢 부팅 + 부하시 너무 예민하게 죽지 않도록 완화된 프로브 설정
           startupProbe:
             httpGet:
               path: /api/healthz
               port: 8080
             periodSeconds: 5
-            failureThreshold: 30   # 최대 150초까지 기다려줌
+            timeoutSeconds: 3      # 1초 → 3초 (부하 시 여유)
+            failureThreshold: 60   # 30 → 60 (최대 5분까지 부팅 기다려줌)
 
           livenessProbe:
             httpGet:
               path: /api/healthz
               port: 8080
-            initialDelaySeconds: 60
-            periodSeconds: 10
-            failureThreshold: 3
+            initialDelaySeconds: 120  # 60 → 120 (충분히 자리 잡고부터 체크)
+            periodSeconds: 20         # 10 → 20
+            timeoutSeconds: 3         # 1초 → 3초
+            failureThreshold: 5       # 3 → 5 (몇 번 연속 실패해야 진짜 죽임)
 
           readinessProbe:
             httpGet:
               path: /api/healthz
               port: 8080
-            initialDelaySeconds: 40   # 30 → 40으로 살짝 여유
+            initialDelaySeconds: 60   # 40 → 60
             periodSeconds: 5
-            failureThreshold: 3
+            timeoutSeconds: 3         # 1초 → 3초
+            failureThreshold: 5       # 3 → 5 (잠깐 느려져도 바로 0/1 안 되게)
 
       volumes:
         - name: otel-agent
