@@ -1,0 +1,533 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ipiece-all-alerts
+  namespace: monitoring          # kube-prometheus-stack가 설치된 네임스페이스
+  labels:
+    release: ipiece-monitoring   # Prometheus ruleSelector에 맞춘 label 유지
+spec:
+  groups:
+  # --------------------------
+  # A. ipiece HTTP 골든시그널
+  # --------------------------
+  - name: ipiece-backend-http
+    interval: 30s
+    rules:
+    # 1) 전체 5xx RPS가 일정 이상이면(절대값)
+    - alert: BackendHigh5xxRate
+      expr: |
+        (
+          sum(
+            rate(
+              http_server_requests_milliseconds_count{
+                job="backend/ipiece-server",
+                status=~"5..",
+                uri!~"/healthz|/actuator.*"
+              }[5m]
+            )
+          ) > 0.05
+        )
+        and
+        sum(
+          rate(
+            http_server_requests_milliseconds_count{
+              job="backend/ipiece-server",
+              uri!~"/healthz|/actuator.*"
+            }[5m]
+          )
+        ) > 1
+      for: 5m
+      labels:
+        severity: critical
+        service: ipiece-backend
+      annotations:
+        summary: "ipiece-backend 5xx 에러 발생 (전역)"
+        description: "최근 5분 동안 5xx RPS가 0.05를 초과했고, 전체 RPS>1입니다. 현재 5xx RPS={{ $value }}"
+
+    # 1-보강) 5xx가 1건이라도 발생하면 알려주는 경고
+    - alert: BackendAny5xx
+      expr: |
+        sum(
+          rate(
+            http_server_requests_milliseconds_count{
+              job="backend/ipiece-server",
+              status=~"5..",
+              uri!~"/healthz|/actuator.*"
+            }[5m]
+          )
+        ) > 0
+      for: 1m
+      labels:
+        severity: warning
+        service: ipiece-backend
+      annotations:
+        summary: "ipiece-backend 5xx 응답 발생"
+        description: "최근 5분 동안 5xx 응답이 1건 이상 발생했습니다. 현재 5xx RPS={{ $value }}"
+
+    # 2) 노드별 5xx 비율이 1% 이상 (충분한 트래픽일 때만)
+    - alert: BackendHigh5xxErrorRatioPerNode
+      expr: |
+        (
+          (
+            sum by (k8s_node_name)(
+              rate(
+                http_server_requests_milliseconds_count{
+                  job="backend/ipiece-server",
+                  status=~"5..",
+                  uri!~"/healthz|/actuator.*"
+                }[5m]
+              )
+            )
+            /
+            sum by (k8s_node_name)(
+              rate(
+                http_server_requests_milliseconds_count{
+                  job="backend/ipiece-server",
+                  uri!~"/healthz|/actuator.*"
+                }[5m]
+              )
+            )
+          ) > 0.01
+        )
+        and
+        sum by (k8s_node_name)(
+          rate(
+            http_server_requests_milliseconds_count{
+              job="backend/ipiece-server",
+              uri!~"/healthz|/actuator.*"
+            }[5m]
+          )
+        ) > 1
+      for: 5m
+      labels:
+        severity: warning
+        service: ipiece-backend
+      annotations:
+        summary: "노드별 5xx 비율 1% 초과"
+        description: "노드 {{ $labels.k8s_node_name }} 에러율={{ printf \"%.2f\" (mul $value 100) }}% (RPS>1인 노드만 대상)"
+
+    # 3) 평균 레이턴시 1초 이상 + RPS>1 인 엔드포인트
+    - alert: BackendSlowEndpointAvgLatency
+      expr: |
+        (
+          sum by (uri, method)(
+            rate(
+              http_server_requests_milliseconds_sum{
+                job="backend/ipiece-server",
+                uri!~"/healthz|/actuator.*"
+              }[5m]
+            )
+          )
+          /
+          sum by (uri, method)(
+            rate(
+              http_server_requests_milliseconds_count{
+                job="backend/ipiece-server",
+                uri!~"/healthz|/actuator.*"
+              }[5m]
+            )
+          )
+        ) > 1000
+        and
+        sum by (uri, method)(
+          rate(
+            http_server_requests_milliseconds_count{
+              job="backend/ipiece-server",
+              uri!~"/healthz|/actuator.*"
+            }[5m]
+          )
+        ) > 1
+      for: 5m
+      labels:
+        severity: warning
+        service: ipiece-backend
+      annotations:
+        summary: "느린 엔드포인트 (평균 > 1s)"
+        description: "{{ $labels.method }} {{ $labels.uri }} 평균={{ printf \"%.0f\" $value }}ms, RPS>1"
+
+    # 4) 전체 트래픽 급감 (거의 0)
+    - alert: BackendTrafficDropToZero
+      expr: |
+        sum(
+          rate(
+            http_server_requests_milliseconds_count{
+              job="backend/ipiece-server",
+              uri!~"/healthz|/actuator.*"
+            }[5m]
+          )
+        ) < 0.1
+      for: 3m
+      labels:
+        severity: critical
+        service: ipiece-backend
+      annotations:
+        summary: "백엔드 트래픽 거의 0"
+        description: "전체 RPS={{ $value }} (<0.1). 배포/점검 시간이 아니면 장애 의심"
+
+    # 5) 특정 노드에만 트래픽이 거의 안 들어오는 경우
+    - alert: BackendNodeNoTraffic
+      expr: |
+        (
+          sum by (k8s_node_name)(
+            rate(
+              http_server_requests_milliseconds_count{
+                job="backend/ipiece-server",
+                uri!~"/healthz|/actuator.*"
+              }[5m]
+            )
+          ) < 0.01
+        )
+        and
+        sum(
+          rate(
+            http_server_requests_milliseconds_count{
+              job="backend/ipiece-server",
+              uri!~"/healthz|/actuator.*"
+            }[5m]
+          )
+        ) > 1
+      for: 5m
+      labels:
+        severity: warning
+        service: ipiece-backend
+      annotations:
+        summary: "특정 노드 RPS 거의 0"
+        description: "노드 {{ $labels.k8s_node_name }} 로 들어오는 트래픽이 거의 없습니다. (전체 RPS>1 기준)"
+
+    # 6) 노드 간 트래픽 불균형 (최댓값이 평균의 2배 초과)
+    - alert: BackendNodeTrafficImbalance
+      expr: |
+        (
+          max by (k8s_node_name)(
+            rate(
+              http_server_requests_milliseconds_count{
+                job="backend/ipiece-server",
+                uri!~"/healthz|/actuator.*"
+              }[5m]
+            )
+          )
+          /
+          avg(
+            rate(
+              http_server_requests_milliseconds_count{
+                job="backend/ipiece-server",
+                uri!~"/healthz|/actuator.*"
+              }[5m]
+            )
+          )
+        ) > 2
+        and
+        sum(
+          rate(
+            http_server_requests_milliseconds_count{
+              job="backend/ipiece-server",
+              uri!~"/healthz|/actuator.*"
+            }[5m]
+          )
+        ) > 1
+      for: 10m
+      labels:
+        severity: info
+        service: ipiece-backend
+      annotations:
+        summary: "노드 간 트래픽 불균형"
+        description: "가장 많이 받는 노드 RPS가 평균의 2배를 10분 이상 초과합니다."
+
+    # 7) (선택) 백엔드에서 DB 연결 오류가 발생할 때
+    #    db_connection_errors_total 메트릭이 있을 때만 효과가 있습니다.
+    - alert: BackendDbConnectionErrors
+      expr: |
+        increase(db_connection_errors_total[5m]) > 0
+      for: 1m
+      labels:
+        severity: warning
+        service: ipiece-backend
+      annotations:
+        summary: "백엔드 DB 연결 오류 발생"
+        description: "최근 5분 동안 DB 연결 오류가 {{ printf \"%.0f\" $value }}회 발생했습니다."
+
+  # --------------------------
+  # B. K8s 가용성/자원 알람
+  # --------------------------
+  - name: ipiece-k8s-core
+    interval: 30s
+    rules:
+    # ipiece-server 파드 수 부족 (예: 2개 미만)
+    - alert: IpieceServerReplicaTooLow
+      expr: |
+        kube_deployment_status_replicas_available{
+          namespace="default",
+          deployment="ipiece-server"
+        } < 2
+      for: 2m
+      labels:
+        severity: critical
+        service: ipiece-backend
+      annotations:
+        summary: "ipiece-server 파드 수 부족"
+        description: "가용 파드 수={{ $value }} (<2)"
+
+    # ipiece-server 원하는 레플리카 수와 실제 가용 수 불일치
+    - alert: IpieceServerReplicaMismatch
+      expr: |
+        kube_deployment_spec_replicas{
+          namespace="default",
+          deployment="ipiece-server"
+        }
+        !=
+        kube_deployment_status_replicas_available{
+          namespace="default",
+          deployment="ipiece-server"
+        }
+      for: 5m
+      labels:
+        severity: warning
+        service: ipiece-backend
+      annotations:
+        summary: "ipiece-server 레플리카 불일치"
+        description: "원하는 레플리카 수와 가용 레플리카 수가 5분 이상 일치하지 않습니다."
+
+    # ipiece-server HPA 스케일 업 (정보용)
+    - alert: IpieceServerScaledUp
+      expr: |
+        kube_hpa_status_current_replicas{
+          namespace="default",
+          hpa="ipiece-server"
+        } > 2
+      for: 2m
+      labels:
+        severity: info
+        service: ipiece-backend
+      annotations:
+        summary: "ipiece-server HPA 스케일 업"
+        description: "현재 레플리카 수={{ $value }} (>2). 부하에 따라 자동 확장되었습니다."
+
+    # ipiece-server 컨테이너 재시작 감지
+    - alert: IpieceServerContainerRestarts
+      expr: |
+        sum by (pod, container)(
+          increase(
+            kube_pod_container_status_restarts_total{
+              namespace="default",
+              pod=~"ipiece-server-.*"
+            }[5m]
+          )
+        ) > 0
+      for: 5m
+      labels:
+        severity: warning
+        service: ipiece-backend
+      annotations:
+        summary: "ipiece-server 컨테이너 재시작"
+        description: "최근 5분 동안 {{ $labels.pod }} / {{ $labels.container }} 재시작 발생 (증가={{ $value }})"
+
+    # ipiece-server HPA 최대 레플리카 도달
+    - alert: IpieceServerHpaMaxedOut
+      expr: |
+        kube_hpa_status_current_replicas{
+          namespace="default",
+          hpa="ipiece-server"
+        }
+        ==
+        kube_hpa_spec_max_replicas{
+          namespace="default",
+          hpa="ipiece-server"
+        }
+      for: 10m
+      labels:
+        severity: warning
+        service: ipiece-backend
+      annotations:
+        summary: "ipiece-server HPA 최대 레플리카 도달"
+        description: "현재 레플리카 수가 HPA 최대값에 10분 이상 도달해 있습니다."
+
+    # 노드 메모리 사용률 과다 (90% 이상)
+    - alert: NodeHighMemoryUsage
+      expr: |
+        100 * (
+          1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)
+        ) > 90
+      for: 5m
+      labels:
+        severity: warning
+        scope: k8s-node
+      annotations:
+        summary: "노드 메모리 사용률 90% 초과"
+        description: "노드 {{ $labels.instance }} 메모리 사용률={{ printf \"%.1f\" $value }}%"
+
+    # 노드 CPU 사용률 과다 (90% 이상)
+    - alert: NodeHighCpuUsage
+      expr: |
+        100 - (
+          avg by (instance)(
+            rate(node_cpu_seconds_total{mode="idle"}[5m])
+          ) * 100
+        ) > 90
+      for: 5m
+      labels:
+        severity: warning
+        scope: k8s-node
+      annotations:
+        summary: "노드 CPU 사용률 90% 초과"
+        description: "노드 {{ $labels.instance }} CPU 사용률={{ printf \"%.1f\" $value }}%"
+
+    # 노드 Ready 상태 이상 (워커 노드 장애 감지)
+    - alert: NodeNotReady
+      expr: |
+        kube_node_status_condition{
+          condition="Ready",
+          status!="true"
+        } > 0
+      for: 5m
+      labels:
+        severity: critical
+        scope: k8s-node
+      annotations:
+        summary: "Kubernetes 노드 NotReady 상태"
+        description: "노드 {{ $labels.node }} 가 5분 이상 Ready가 아닙니다."
+
+  # --------------------------
+  # C. ipiece 온프레 코어 (RPC/DB)
+  # --------------------------
+  - name: ipiece-onprem-core
+    interval: 30s
+    rules:
+    # RPC 노드 CPU 사용률 과다 (평균 > 80%)
+    - alert: OnpremRpcHighCpuUsage
+      expr: |
+        100 - (
+          avg by (job)(
+            rate(system_cpu_time_seconds_total{
+              job=~"rpc[1-2]",
+              state="idle"
+            }[5m])
+          ) * 100
+        ) > 80
+      for: 5m
+      labels:
+        severity: warning
+        scope: onprem-rpc
+      annotations:
+        summary: "RPC 노드 CPU 사용률 80% 초과"
+        description: "{{ $labels.job }} CPU 사용률={{ printf \"%.1f\" $value }}% (5분 평균)"
+
+    # RPC 노드 메모리 사용률 과다 (> 90%)
+    - alert: OnpremRpcHighMemoryUsage
+      expr: |
+        (1 - (
+          sum by (job)(
+            system_memory_usage_bytes{
+              job=~"rpc[1-2]",
+              state="free"
+            }
+          )
+          /
+          sum by (job)(
+            system_memory_usage_bytes{
+              job=~"rpc[1-2]"
+            }
+          )
+        )) * 100 > 90
+      for: 5m
+      labels:
+        severity: warning
+        scope: onprem-rpc
+      annotations:
+        summary: "RPC 노드 메모리 사용률 90% 초과"
+        description: "{{ $labels.job }} 메모리 사용률={{ printf \"%.1f\" $value }}%"
+
+    # RPC 노드 Root 디스크 사용률 과다 (/) > 90%
+    - alert: OnpremRpcRootFsHighUsage
+      expr: |
+        sum by (job)(
+          system_filesystem_usage_bytes{
+            job=~"rpc[1-2]",
+            mountpoint="/",
+            state="used"
+          }
+        )
+        /
+        sum by (job)(
+          system_filesystem_usage_bytes{
+            job=~"rpc[1-2]",
+            mountpoint="/"
+          }
+        )
+        * 100 > 90
+      for: 10m
+      labels:
+        severity: warning
+        scope: onprem-rpc
+      annotations:
+        summary: "RPC 노드 Root(/) 디스크 사용률 90% 초과"
+        description: "{{ $labels.job }} Root(/) 사용률={{ printf \"%.1f\" $value }}%"
+
+    # DB 노드 CPU 사용률 과다 (평균 > 80%)
+    - alert: OnpremDbHighCpuUsage
+      expr: |
+        100 - (
+          avg by (job)(
+            rate(system_cpu_time_seconds_total{
+              job=~"db[1-3]",
+              state="idle"
+            }[5m])
+          ) * 100
+        ) > 80
+      for: 5m
+      labels:
+        severity: warning
+        scope: onprem-db
+      annotations:
+        summary: "DB 노드 CPU 사용률 80% 초과"
+        description: "{{ $labels.job }} CPU 사용률={{ printf \"%.1f\" $value }}% (5분 평균)"
+
+    # DB 노드 메모리 사용률 과다 (> 90%)
+    - alert: OnpremDbHighMemoryUsage
+      expr: |
+        (1 - (
+          sum by (job)(
+            system_memory_usage_bytes{
+              job=~"db[1-3]",
+              state="free"
+            }
+          )
+          /
+          sum by (job)(
+            system_memory_usage_bytes{
+              job=~"db[1-3]"
+            }
+          )
+        )) * 100 > 90
+      for: 5m
+      labels:
+        severity: warning
+        scope: onprem-db
+      annotations:
+        summary: "DB 노드 메모리 사용률 90% 초과"
+        description: "{{ $labels.job }} 메모리 사용률={{ printf \"%.1f\" $value }}%"
+
+    # DB 노드 Root 디스크 사용률 과다 (/) > 90%
+    - alert: OnpremDbRootFsHighUsage
+      expr: |
+        sum by (job)(
+          system_filesystem_usage_bytes{
+            job=~"db[1-3]",
+            mountpoint="/",
+            state="used"
+          }
+        )
+        /
+        sum by (job)(
+          system_filesystem_usage_bytes{
+            job=~"db[1-3]",
+            mountpoint="/"
+          }
+        )
+        * 100 > 90
+      for: 10m
+      labels:
+        severity: warning
+        scope: onprem-db
+      annotations:
+        summary: "DB 노드 Root(/) 디스크 사용률 90% 초과"
+        description: "{{ $labels.job }} Root(/) 사용률={{ printf \"%.1f\" $value }}%"
