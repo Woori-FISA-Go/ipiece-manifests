@@ -404,3 +404,62 @@ otel:
       - apiGroups: ["extensions"]
         resources: ["replicasets"]
         verbs: ["get", "list", "watch"]
+# ==========================================
+# 4. OTel Collector GATEWAY (Java OTLP)
+# ==========================================
+otel-collector-gateway:
+  enabled: true
+
+  # 이 부분이 꼭 있어야 함 👇
+  image:
+    repository: otel/opentelemetry-collector-contrib
+    tag: "0.91.0"
+
+  mode: deployment
+
+  service:
+    type: ClusterIP
+
+  # 🔹 Gateway는 "인프라 컴포넌트"니까 system 노드에만 띄움
+  nodeSelector:
+    node-role.kubernetes.io/system: "true"
+  tolerations:
+    - key: "system"
+      operator: "Equal"
+      value: "core"
+      effect: "NoSchedule"
+
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    processors:
+      batch: {}
+
+    exporters:
+      loki:
+        endpoint: "http://ipiece-loki.monitoring:3100/loki/api/v1/push"
+        tls:
+          insecure: true
+
+      prometheusremotewrite:
+        endpoint: "http://prometheus-operated.monitoring:9090/api/v1/write"
+        tls:
+          insecure: true
+
+    service:
+      pipelines:
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [prometheusremotewrite]
+
+        logs:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [loki]
