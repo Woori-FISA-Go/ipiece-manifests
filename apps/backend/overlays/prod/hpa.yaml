@@ -10,7 +10,7 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: ipiece-server
-  minReplicas: 2        # 지금처럼 최소 2개 유지
+  minReplicas: 4        # 지금처럼 최소 2개 유지
   maxReplicas: 10       # 네가 쓰던 값 그대로
   metrics:
     - type: Resource
