@@ -13,21 +13,53 @@ kind: ClusterRole
 metadata:
   name: cluster-autoscaler
 rules:
+  # 이벤트/엔드포인트 생성
   - apiGroups: [""]
     resources: ["events", "endpoints"]
     verbs: ["create", "patch"]
+
+  # 기본 리소스 + replicationcontrollers
   - apiGroups: [""]
-    resources: ["pods/status", "pods", "services", "nodes", "namespaces"]
+    resources:
+      - pods/status
+      - pods
+      - services
+      - nodes
+      - namespaces
+      - replicationcontrollers
     verbs: ["get", "list", "watch"]
+
+  # ReplicaSet / StatefulSet / DaemonSet
   - apiGroups: ["apps"]
-    resources: ["replicasets", "statefulsets"]
+    resources:
+      - replicasets
+      - statefulsets
+      - daemonsets
     verbs: ["get", "list", "watch"]
+
+  # Job
+  - apiGroups: ["batch"]
+    resources:
+      - jobs
+    verbs: ["get", "list", "watch"]
+
+  # PodDisruptionBudget
+  - apiGroups: ["policy"]
+    resources:
+      - poddisruptionbudgets
+    verbs: ["get", "list", "watch"]
+
+  # PVC / PV
   - apiGroups: [""]
     resources: ["persistentvolumeclaims", "persistentvolumes"]
     verbs: ["get", "list", "watch"]
+
+  # 스토리지 관련
   - apiGroups: ["storage.k8s.io"]
     resources: ["storageclasses", "csinodes", "csidrivers", "csistoragecapacities"]
     verbs: ["get", "list", "watch"]
+
+  # 리스 (leader election)
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["create", "get", "list", "watch", "update"]
