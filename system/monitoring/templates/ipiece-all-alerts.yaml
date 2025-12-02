@@ -42,7 +42,7 @@ spec:
         service: ipiece-backend
       annotations:
         summary: "ipiece-backend 5xx 에러 발생 (전역)"
-        description: "최근 5분 동안 5xx RPS가 0.05를 초과했고, 전체 RPS>1입니다. 현재 5xx RPS={{ $value }}"
+        description: "최근 5분 동안 5xx RPS가 0.05를 초과했고, 전체 RPS>1입니다. 현재 5xx RPS={{`{{`}} $value {{`}}`}}"
 
     # 1-보강) 5xx가 1건이라도 발생하면 알려주는 경고
     - alert: BackendAny5xx
@@ -62,7 +62,7 @@ spec:
         service: ipiece-backend
       annotations:
         summary: "ipiece-backend 5xx 응답 발생"
-        description: "최근 5분 동안 5xx 응답이 1건 이상 발생했습니다. 현재 5xx RPS={{ $value }}"
+        description: "최근 5분 동안 5xx 응답이 1건 이상 발생했습니다. 현재 5xx RPS={{`{{`}} $value {{`}}`}}"
 
     # 2) 노드별 5xx 비율이 1% 이상 (충분한 트래픽일 때만)
     - alert: BackendHigh5xxErrorRatioPerNode
@@ -104,7 +104,7 @@ spec:
         service: ipiece-backend
       annotations:
         summary: "노드별 5xx 비율 1% 초과"
-        description: "노드 {{ $labels.k8s_node_name }} 에러율={{ printf \"%.2f\" (mul $value 100) }}% (RPS>1인 노드만 대상)"
+        description: "노드 {{`{{`}} $labels.k8s_node_name {{`}}`}} 에러율={{`{{`}} printf \"%.2f\" (mul $value 100) {{`}}`}}% (RPS>1인 노드만 대상)"
 
     # 3) 평균 레이턴시 1초 이상 + RPS>1 인 엔드포인트
     - alert: BackendSlowEndpointAvgLatency
@@ -143,7 +143,7 @@ spec:
         service: ipiece-backend
       annotations:
         summary: "느린 엔드포인트 (평균 > 1s)"
-        description: "{{ $labels.method }} {{ $labels.uri }} 평균={{ printf \"%.0f\" $value }}ms, RPS>1"
+        description: "{{`{{`}} $labels.method {{`}}`}} {{`{{`}} $labels.uri {{`}}`}} 평균={{`{{`}} printf \"%.0f\" $value {{`}}`}}ms, RPS>1"
 
     # 4) 전체 트래픽 급감 (거의 0)
     - alert: BackendTrafficDropToZero
@@ -162,7 +162,7 @@ spec:
         service: ipiece-backend
       annotations:
         summary: "백엔드 트래픽 거의 0"
-        description: "전체 RPS={{ $value }} (<0.1). 배포/점검 시간이 아니면 장애 의심"
+        description: "전체 RPS={{`{{`}} $value {{`}}`}} (<0.1). 배포/점검 시간이 아니면 장애 의심"
 
     # 5) 특정 노드에만 트래픽이 거의 안 들어오는 경우
     - alert: BackendNodeNoTraffic
@@ -192,7 +192,7 @@ spec:
         service: ipiece-backend
       annotations:
         summary: "특정 노드 RPS 거의 0"
-        description: "노드 {{ $labels.k8s_node_name }} 로 들어오는 트래픽이 거의 없습니다. (전체 RPS>1 기준)"
+        description: "노드 {{`{{`}} $labels.k8s_node_name {{`}}`}} 로 들어오는 트래픽이 거의 없습니다. (전체 RPS>1 기준)"
 
     # 6) 노드 간 트래픽 불균형 (최댓값이 평균의 2배 초과)
     - alert: BackendNodeTrafficImbalance
@@ -244,7 +244,7 @@ spec:
         service: ipiece-backend
       annotations:
         summary: "백엔드 DB 연결 오류 발생"
-        description: "최근 5분 동안 DB 연결 오류가 {{ printf \"%.0f\" $value }}회 발생했습니다."
+        description: "최근 5분 동안 DB 연결 오류가 {{`{{`}} printf \"%.0f\" $value {{`}}`}}회 발생했습니다."
 
   # --------------------------
   # B. K8s 가용성/자원 알람
@@ -265,7 +265,7 @@ spec:
         service: ipiece-backend
       annotations:
         summary: "ipiece-server 파드 수 부족"
-        description: "가용 파드 수={{ $value }} (<2)"
+        description: "가용 파드 수={{`{{`}} $value {{`}}`}} (<2)"
 
     # ipiece-server 원하는 레플리카 수와 실제 가용 수 불일치
     - alert: IpieceServerReplicaMismatch
@@ -300,7 +300,7 @@ spec:
         service: ipiece-backend
       annotations:
         summary: "ipiece-server HPA 스케일 업"
-        description: "현재 레플리카 수={{ $value }} (>2). 부하에 따라 자동 확장되었습니다."
+        description: "현재 레플리카 수={{`{{`}} $value {{`}}`}} (>2). 부하에 따라 자동 확장되었습니다."
 
     # ipiece-server 컨테이너 재시작 감지
     - alert: IpieceServerContainerRestarts
@@ -319,7 +319,7 @@ spec:
         service: ipiece-backend
       annotations:
         summary: "ipiece-server 컨테이너 재시작"
-        description: "최근 5분 동안 {{ $labels.pod }} / {{ $labels.container }} 재시작 발생 (증가={{ $value }})"
+        description: "최근 5분 동안 {{`{{`}} $labels.pod {{`}}`}} / {{`{{`}} $labels.container {{`}}`}} 재시작 발생 (증가={{`{{`}} $value {{`}}`}})"
 
     # ipiece-server HPA 최대 레플리카 도달
     - alert: IpieceServerHpaMaxedOut
@@ -353,7 +353,7 @@ spec:
         scope: k8s-node
       annotations:
         summary: "노드 메모리 사용률 90% 초과"
-        description: "노드 {{ $labels.instance }} 메모리 사용률={{ printf \"%.1f\" $value }}%"
+        description: "노드 {{`{{`}} $labels.instance {{`}}`}} 메모리 사용률={{`{{`}} printf \"%.1f\" $value {{`}}`}}%"
 
     # 노드 CPU 사용률 과다 (90% 이상)
     - alert: NodeHighCpuUsage
@@ -369,7 +369,7 @@ spec:
         scope: k8s-node
       annotations:
         summary: "노드 CPU 사용률 90% 초과"
-        description: "노드 {{ $labels.instance }} CPU 사용률={{ printf \"%.1f\" $value }}%"
+        description: "노드 {{`{{`}} $labels.instance {{`}}`}} CPU 사용률={{`{{`}} printf \"%.1f\" $value {{`}}`}}%"
 
     # 노드 Ready 상태 이상 (워커 노드 장애 감지)
     - alert: NodeNotReady
@@ -384,7 +384,7 @@ spec:
         scope: k8s-node
       annotations:
         summary: "Kubernetes 노드 NotReady 상태"
-        description: "노드 {{ $labels.node }} 가 5분 이상 Ready가 아닙니다."
+        description: "노드 {{`{{`}} $labels.node {{`}}`}} 가 5분 이상 Ready가 아닙니다."
 
   # --------------------------
   # C. ipiece 온프레 코어 (RPC/DB)
@@ -409,7 +409,7 @@ spec:
         scope: onprem-rpc
       annotations:
         summary: "RPC 노드 CPU 사용률 80% 초과"
-        description: "{{ $labels.job }} CPU 사용률={{ printf \"%.1f\" $value }}% (5분 평균)"
+        description: "{{`{{`}} $labels.job {{`}}`}} CPU 사용률={{`{{`}} printf \"%.1f\" $value {{`}}`}}% (5분 평균)"
 
     # RPC 노드 메모리 사용률 과다 (> 90%)
     - alert: OnpremRpcHighMemoryUsage
@@ -434,7 +434,7 @@ spec:
         scope: onprem-rpc
       annotations:
         summary: "RPC 노드 메모리 사용률 90% 초과"
-        description: "{{ $labels.job }} 메모리 사용률={{ printf \"%.1f\" $value }}%"
+        description: "{{`{{`}} $labels.job {{`}}`}} 메모리 사용률={{`{{`}} printf \"%.1f\" $value {{`}}`}}%"
 
     # RPC 노드 Root 디스크 사용률 과다 (/) > 90%
     - alert: OnpremRpcRootFsHighUsage
@@ -460,7 +460,7 @@ spec:
         scope: onprem-rpc
       annotations:
         summary: "RPC 노드 Root(/) 디스크 사용률 90% 초과"
-        description: "{{ $labels.job }} Root(/) 사용률={{ printf \"%.1f\" $value }}%"
+        description: "{{`{{`}} $labels.job {{`}}`}} Root(/) 사용률={{`{{`}} printf \"%.1f\" $value {{`}}`}}%"
 
     # DB 노드 CPU 사용률 과다 (평균 > 80%)
     - alert: OnpremDbHighCpuUsage
@@ -479,7 +479,7 @@ spec:
         scope: onprem-db
       annotations:
         summary: "DB 노드 CPU 사용률 80% 초과"
-        description: "{{ $labels.job }} CPU 사용률={{ printf \"%.1f\" $value }}% (5분 평균)"
+        description: "{{`{{`}} $labels.job {{`}}`}} CPU 사용률={{`{{`}} printf \"%.1f\" $value {{`}}`}}% (5분 평균)"
 
     # DB 노드 메모리 사용률 과다 (> 90%)
     - alert: OnpremDbHighMemoryUsage
@@ -504,7 +504,7 @@ spec:
         scope: onprem-db
       annotations:
         summary: "DB 노드 메모리 사용률 90% 초과"
-        description: "{{ $labels.job }} 메모리 사용률={{ printf \"%.1f\" $value }}%"
+        description: "{{`{{`}} $labels.job {{`}}`}} 메모리 사용률={{`{{`}} printf \"%.1f\" $value {{`}}`}}%"
 
     # DB 노드 Root 디스크 사용률 과다 (/) > 90%
     - alert: OnpremDbRootFsHighUsage
@@ -530,4 +530,4 @@ spec:
         scope: onprem-db
       annotations:
         summary: "DB 노드 Root(/) 디스크 사용률 90% 초과"
-        description: "{{ $labels.job }} Root(/) 사용률={{ printf \"%.1f\" $value }}%"
+        description: "{{`{{`}} $labels.job {{`}}`}} Root(/) 사용률={{`{{`}} printf \"%.1f\" $value {{`}}`}}%"
