@@ -20,3 +20,11 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+
+  # 🔥 프론트도 HPA가 replicas 조절하도록, Argo는 /spec/replicas는 무시
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      name: ipiece-frontend
+      jsonPointers:
+        - /spec/replicas
