@@ -574,7 +574,7 @@ spec:
   - name: ipiece-test
     interval: 30s
     rules:
-    - alert: IpieceTestAppAlert
+    - alert: IpieceTestAppAlertV2
       expr: vector(1)
       for: 1m
       labels:
@@ -584,7 +584,7 @@ spec:
         summary: "🧪 TEST app alert"
         description: "ipiece-app-alarm 채널 테스트용 알람입니다."
 
-    - alert: IpieceTestEksInfraAlert
+    - alert: IpieceTestEksInfraAlertV2
       expr: vector(1)
       for: 1m
       labels:
@@ -595,7 +595,7 @@ spec:
         summary: "🧪 TEST EKS infra alert"
         description: "ipiece-eks-infra-alarm 채널 테스트용 알람입니다."
 
-    - alert: IpieceTestOnpremInfraAlert
+    - alert: IpieceTestOnpremInfraAlertV2
       expr: vector(1)
       for: 1m
       labels:
