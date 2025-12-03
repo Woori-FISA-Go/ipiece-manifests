@@ -18,7 +18,7 @@ spec:
     spec:
       # 🔽 워크로드 전용 노드
       nodeSelector:
-        node-role.kubernetes.io/workload: "true"
+        role: "workload"
 
       # 🔽 AZ / 노드 분산
       topologySpreadConstraints:
