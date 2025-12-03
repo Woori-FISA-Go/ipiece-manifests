@@ -43,27 +43,27 @@ spec:
     - name: slack-app
       slackConfigs:
         - apiURL:
-            name: alertmanager-slack-app-webhook      # ← app 채널용 Secret
+            name: alertmanager-slack-app-webhook
             key: slack_api_url
           sendResolved: true
 
     - name: slack-eks-infra
       slackConfigs:
         - apiURL:
-            name: alertmanager-slack-eks-webhook      # ← eks 채널용 Secret
+            name: alertmanager-slack-eks-webhook
             key: slack_api_url
           sendResolved: true
 
     - name: slack-onprem-infra
       slackConfigs:
         - apiURL:
-            name: alertmanager-slack-onprem-webhook   # ← onprem 채널용 Secret
+            name: alertmanager-slack-onprem-webhook
             key: slack_api_url
           sendResolved: true
 
     - name: slack-main
       slackConfigs:
         - apiURL:
-            name: alertmanager-slack-webhook          # 기존 #ipiece-alarm 용
+            name: alertmanager-slack-webhook
             key: slack_api_url
           sendResolved: true
