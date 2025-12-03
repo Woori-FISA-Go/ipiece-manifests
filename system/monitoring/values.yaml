@@ -93,6 +93,17 @@ kube-prometheus-stack:
 
   # ===== Alertmanager + Slack =====
   alertmanager:
+    enabled: true
+    fullnameOverride: ipiece-alertmanager
+    replicaCount: 1
+    nodeSelector:
+      node-role.kubernetes.io/system: "true"
+    tolerations:
+      - key: "system"
+        operator: "Equal"
+        value: "core"
+        effect: "NoSchedule"
+        
     extraSecretMounts:
       - name: slack-webhook
         secretName: alertmanager-slack-webhook
