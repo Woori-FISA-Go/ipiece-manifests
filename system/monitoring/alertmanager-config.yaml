@@ -7,17 +7,66 @@ metadata:
     alertmanagerConfig: ipiece
 spec:
   route:
-    receiver: slack-main
     groupBy: ['alertname', 'namespace']
     groupWait: 30s
     groupInterval: 5m
     repeatInterval: 4h
 
+    # 하위 라우트: 라벨 기준으로 채널 분리
+    routes:
+      # 앱 알람 (ipiece-backend-http)
+      - matchers:
+          - alert_team="app"
+        receiver: slack-app
+
+      # EKS 인프라 알람 (ipiece-k8s-core)
+      - matchers:
+          - alert_team="infra"
+          - infra="eks"
+        receiver: slack-eks-infra
+
+      # 온프렘 인프라 알람 (ipiece-onprem-core)
+      - matchers:
+          - alert_team="infra"
+          - infra="onprem"
+        receiver: slack-onprem-infra
+
+    # 어디에도 안 걸리는 알람이 있을 때 기본 리시버
+    receiver: slack-main
+
   receivers:
+    # 앱 알람 → #ipiece-app-alarm
+    - name: slack-app
+      slackConfigs:
+        - apiURL:
+            name: alertmanager-slack-webhook   # Secret 이름 (기존 그대로)
+            key: slack_api_url                 # 그 안의 key
+          channel: '#ipiece-app-alarm'
+          sendResolved: true
+
+    # EKS 인프라 알람 → #ipiece-eks-infra-alarm
+    - name: slack-eks-infra
+      slackConfigs:
+        - apiURL:
+            name: alertmanager-slack-webhook
+            key: slack_api_url
+          channel: '#ipiece-eks-infra-alarm'
+          sendResolved: true
+
+    # 온프렘 인프라 알람 → #ipiece-onprem-infra-alarm
+    - name: slack-onprem-infra
+      slackConfigs:
+        - apiURL:
+            name: alertmanager-slack-webhook
+            key: slack_api_url
+          channel: '#ipiece-onprem-infra-alarm'
+          sendResolved: true
+
+    # 예비/기타용 기본 채널 (원래 쓰던 #ipiece-alarm 유지)
     - name: slack-main
       slackConfigs:
         - apiURL:
-            name: alertmanager-slack-webhook   # Secret 이름
-            key: slack_api_url                 # 그 안의 key
+            name: alertmanager-slack-webhook
+            key: slack_api_url
           channel: '#ipiece-alarm'
           sendResolved: true
