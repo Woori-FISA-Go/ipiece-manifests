@@ -91,42 +91,41 @@ kube-prometheus-stack:
         effect: "NoSchedule"
 
 
-  # ===== Alertmanager + Slack =====
+    # ===== Alertmanager + Slack =====
   alertmanager:
     enabled: true
-    fullnameOverride: ipiece-alertmanager
-    replicaCount: 1
-    nodeSelector:
-      node-role.kubernetes.io/system: "true"
-    tolerations:
-      - key: "system"
-        operator: "Equal"
-        value: "core"
-        effect: "NoSchedule"
-        
-    extraSecretMounts:
-      - name: slack-webhook
-        secretName: alertmanager-slack-webhook
-        mountPath: /etc/alertmanager/secrets
-        readOnly: true
-
+    
+    alertmanagerSpec:
+      # system 노드에 고정
+      nodeSelector:
+        node-role.kubernetes.io/system: "true"
+      tolerations:
+        - key: "system"
+          operator: "Equal"
+          value: "core"
+          effect: "NoSchedule"
+      
+      # Secret 마운트
+      secrets:
+        - alertmanager-slack-webhook
+    
+    # config는 alertmanager 바로 아래
     config:
       global:
         resolve_timeout: 5m
-        # Secret 파일에서 Webhook URL 읽기
-        slack_api_url_file: /etc/alertmanager/secrets/slack_api_url
-
+      
       route:
         receiver: "slack-main"
         group_by: ['alertname', 'service']
         group_wait: 30s
         group_interval: 5m
         repeat_interval: 4h
-
+      
       receivers:
         - name: "slack-main"
           slack_configs:
-            - channel: "#ipiece-alarm"   # 실제 슬랙 채널명으로 변경 가능
+            - api_url_file: /etc/alertmanager/secrets/alertmanager-slack-webhook/slack_api_url
+              channel: "#ipiece-alarm"
               send_resolved: true
 
 # ==========================================
