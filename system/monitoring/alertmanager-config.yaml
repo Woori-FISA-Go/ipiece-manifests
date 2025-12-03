@@ -16,19 +16,29 @@ spec:
     routes:
       # 앱 알람 (ipiece-backend-http)
       - matchers:
-          - alert_team="app"
+          - name: alert_team
+            value: app
+            regex: false
         receiver: slack-app
 
       # EKS 인프라 알람 (ipiece-k8s-core)
       - matchers:
-          - alert_team="infra"
-          - infra="eks"
+          - name: alert_team
+            value: infra
+            regex: false
+          - name: infra
+            value: eks
+            regex: false
         receiver: slack-eks-infra
 
       # 온프렘 인프라 알람 (ipiece-onprem-core)
       - matchers:
-          - alert_team="infra"
-          - infra="onprem"
+          - name: alert_team
+            value: infra
+            regex: false
+          - name: infra
+            value: onprem
+            regex: false
         receiver: slack-onprem-infra
 
     # 어디에도 안 걸리는 알람이 있을 때 기본 리시버
@@ -40,7 +50,7 @@ spec:
       slackConfigs:
         - apiURL:
             name: alertmanager-slack-webhook   # Secret 이름 (기존 그대로)
-            key: slack_api_url                 # 그 안의 key
+            key: slack_api_url                  # 그 안의 key
           channel: '#ipiece-app-alarm'
           sendResolved: true
 
