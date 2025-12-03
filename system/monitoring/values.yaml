@@ -91,7 +91,7 @@ kube-prometheus-stack:
         effect: "NoSchedule"
 
 
-    # ===== Alertmanager + Slack =====
+  # ===== Alertmanager + Slack =====
   alertmanager:
     enabled: true
     
@@ -104,12 +104,12 @@ kube-prometheus-stack:
           operator: "Equal"
           value: "core"
           effect: "NoSchedule"
-
-    alertmanagerConfigSelector:
+          
+      alertmanagerConfigSelector:
         matchLabels:
           alertmanagerConfig: ipiece
 
-    alertmanagerConfigNamespaceSelector: {}  
+      alertmanagerConfigNamespaceSelector: {}
       
 # ==========================================
 # 2. Loki (S3 연동)
