@@ -91,12 +91,11 @@ kube-prometheus-stack:
         effect: "NoSchedule"
 
 
-    # ===== Alertmanager + Slack =====
+  # ===== Alertmanager + Slack =====
   alertmanager:
     enabled: true
-    
+
     alertmanagerSpec:
-      # system 노드에 고정
       nodeSelector:
         role: "system"
       tolerations:
@@ -105,12 +104,57 @@ kube-prometheus-stack:
           value: "core"
           effect: "NoSchedule"
 
-    alertmanagerConfigSelector:
-        matchLabels:
-          alertmanagerConfig: ipiece
+      # 이 시크릿을 Alertmanager Pod 안에 파일로 마운트
+      secrets:
+        - alertmanager-slack-secrets
 
-    alertmanagerConfigNamespaceSelector: {}  
-      
+    config:
+      global:
+        resolve_timeout: 5m
+
+      route:
+        group_by: ['alertname', 'namespace']
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 4h
+        receiver: slack-main
+
+        routes:
+          - matchers:
+              - alert_team="app"
+            receiver: slack-app
+
+          - matchers:
+              - alert_team="infra"
+              - infra="eks"
+            receiver: slack-eks-infra
+
+          - matchers:
+              - alert_team="infra"
+              - infra="onprem"
+            receiver: slack-onprem-infra
+
+      receivers:
+        - name: slack-main
+          slack_configs:
+            - send_resolved: true
+              api_url_file: /etc/alertmanager/secrets/alertmanager-slack-secrets/slack-main-url
+
+        - name: slack-app
+          slack_configs:
+            - send_resolved: true
+              api_url_file: /etc/alertmanager/secrets/alertmanager-slack-secrets/slack-app-url
+
+        - name: slack-eks-infra
+          slack_configs:
+            - send_resolved: true
+              api_url_file: /etc/alertmanager/secrets/alertmanager-slack-secrets/slack-eks-url
+
+        - name: slack-onprem-infra
+          slack_configs:
+            - send_resolved: true
+              api_url_file: /etc/alertmanager/secrets/alertmanager-slack-secrets/slack-onprem-url
+
 # ==========================================
 # 2. Loki (S3 연동)
 # ==========================================
