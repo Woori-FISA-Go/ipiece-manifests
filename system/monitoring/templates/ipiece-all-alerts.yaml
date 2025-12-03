@@ -567,3 +567,41 @@ spec:
       annotations:
         summary: "🟡 DB 노드 Root(/) 디스크 사용률 90% 초과"
         description: "{{`{{`}} $labels.job {{`}}`}} Root(/) 사용률={{`{{`}} printf \"%.1f\" $value {{`}}`}}%"
+
+  # --------------------------
+  # Z. 테스트 알람 (임시)
+  # --------------------------
+  - name: ipiece-test
+    interval: 30s
+    rules:
+    - alert: IpieceTestAppAlert
+      expr: vector(1)
+      for: 1m
+      labels:
+        severity: warning
+        alert_team: app          # → #ipiece-app-alarm
+      annotations:
+        summary: "🧪 TEST app alert"
+        description: "ipiece-app-alarm 채널 테스트용 알람입니다."
+
+    - alert: IpieceTestEksInfraAlert
+      expr: vector(1)
+      for: 1m
+      labels:
+        severity: warning
+        alert_team: infra        # infra + eks
+        infra: eks               # → #ipiece-eks-infra-alarm
+      annotations:
+        summary: "🧪 TEST EKS infra alert"
+        description: "ipiece-eks-infra-alarm 채널 테스트용 알람입니다."
+
+    - alert: IpieceTestOnpremInfraAlert
+      expr: vector(1)
+      for: 1m
+      labels:
+        severity: warning
+        alert_team: infra
+        infra: onprem            # → #ipiece-onprem-infra-alarm
+      annotations:
+        summary: "🧪 TEST onprem infra alert"
+        description: "ipiece-onprem-infra-alarm 채널 테스트용 알람입니다."
