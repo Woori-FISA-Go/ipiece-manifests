@@ -109,6 +109,8 @@ kube-prometheus-stack:
       secrets:
         - alertmanager-slack-webhook
 
+      configSecret: alertmanager-ipiece-monitoring-kube-pro-alertmanager
+      
 # ==========================================
 # 2. Loki (S3 연동)
 # ==========================================
