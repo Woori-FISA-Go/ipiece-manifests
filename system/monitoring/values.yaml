@@ -2,511 +2,572 @@
 # 1. Prometheus + Grafana + Alertmanager
 # ==========================================
 kube-prometheus-stack:
-  prometheus:
-    prometheusSpec:
-      enableRemoteWriteReceiver: true
-      retention: 15d
-
-      # 🔹 Prometheus는 system 노드에 고정
-      nodeSelector:
-        role: "system"
-      tolerations:
-        - key: "system"
-          operator: "Equal"
-          value: "core"
-          effect: "NoSchedule"
-
-      # DaemonSet OTel Agent → Prometheus Pull (Agent 자체 메트릭 수집)
-      scrapeConfigs:
-        - job_name: "otel-agent"
-          metrics_path: /metrics
-          static_configs:
-            - targets:
-                - "ipiece-otel-agent.monitoring.svc.cluster.local:8888"
-
-      storageSpec:
-        volumeClaimTemplate:
-          spec:
-            storageClassName: gp2 # ❌ 바꾸지 않기
-            accessModes: ["ReadWriteOnce"]
-            resources:
-              requests:
-                storage: 50Gi  # ❌ 줄이거나 바꾸지 않기
-
-  grafana:
-    enabled: true
-    replicaCount: 1
-    adminPassword: "admin"
-
-    # 🔹 Grafana도 system 노드에 고정
-    nodeSelector:
-      role: "system"
-    tolerations:
-      - key: "system"
-        operator: "Equal"
-        value: "core"
-        effect: "NoSchedule"
-
-    grafana.ini:
-      server:
-        root_url: "%(protocol)s://%(domain)s/grafana/"
-        serve_from_sub_path: true
-      security:
-        allow_embedding: true
-      public_dashboards:
-        enabled: true
-      auth.anonymous:
-        enabled: true
-        org_role: Viewer
-
-    persistence:
-      enabled: true # ❌ 끄지 않기
-      storageClassName: gp2 # ❌ 바꾸지 않기
-      size: 10Gi # ❌ 줄이지/늘리지 않기 (늘릴 땐 별도 절차)
-
-    additionalDataSources:
-      - name: Loki
-        type: loki
-        url: http://ipiece-loki:3100/
-        access: proxy
-
-  # 🔹 nodeExporter = DaemonSet (모든 노드에서 떠야 함)
-  #    → system taint 된 노드에서도 잘 돌 수 있게 tolerations만 추가
-  nodeExporter:
-    enabled: true
-    tolerations:
-      - key: "system"
-        operator: "Equal"
-        value: "core"
-        effect: "NoSchedule"
-
-  # 🔹 kube-state-metrics는 "시스템 컴포넌트"니까 system 노드에 고정
-  kube-state-metrics:
-    nodeSelector:
-      role: "system"
-    tolerations:
-      - key: "system"
-        operator: "Equal"
-        value: "core"
-        effect: "NoSchedule"
+  prometheus:
+    prometheusSpec:
+      enableRemoteWriteReceiver: true
+      retention: 15d
 
 
-  # ===== Alertmanager + Slack =====
-  alertmanager:
-    enabled: true
+      # 🔹 Prometheus는 system 노드에 고정
+      nodeSelector:
+        role: "system"
+      tolerations:
+        - key: "system"
+          operator: "Equal"
+          value: "core"
+          effect: "NoSchedule"
 
-    alertmanagerSpec:
-      nodeSelector:
-        role: "system"
-      tolerations:
-        - key: "system"
-          operator: "Equal"
-          value: "core"
-          effect: "NoSchedule"
-<<<<<<< HEAD
 
-      # 이 시크릿을 Alertmanager Pod 안에 파일로 마운트
-      secrets:
-        - alertmanager-slack-secrets
+      # DaemonSet OTel Agent → Prometheus Pull (Agent 자체 메트릭 수집)
+      scrapeConfigs:
+        - job_name: "otel-agent"
+          metrics_path: /metrics
+          static_configs:
+            - targets:
+                - "ipiece-otel-agent.monitoring.svc.cluster.local:8888"
 
-    config:
-      global:
-        resolve_timeout: 5m
 
-      route:
-        group_by: ['alertname', 'namespace']
-        group_wait: 30s
-        group_interval: 5m
-        repeat_interval: 4h
-        receiver: slack-main
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: gp2 # ❌ 바꾸지 않기
+            accessModes: ["ReadWriteOnce"]
+            resources:
+              requests:
+                storage: 50Gi  # ❌ 줄이거나 바꾸지 않기
 
-        routes:
-          - matchers:
-              - alert_team="app"
-            receiver: slack-app
 
-          - matchers:
-              - alert_team="infra"
-              - infra="eks"
-            receiver: slack-eks-infra
+  grafana:
+    enabled: true
+    replicaCount: 1
+    adminPassword: "admin"
 
-          - matchers:
-              - alert_team="infra"
-              - infra="onprem"
-            receiver: slack-onprem-infra
 
-      receivers:
-        - name: slack-main
-          slack_configs:
-            - send_resolved: true
-              api_url_file: /etc/alertmanager/secrets/alertmanager-slack-secrets/slack-main-url
+    # 🔹 Grafana도 system 노드에 고정
+    nodeSelector:
+      role: "system"
+    tolerations:
+      - key: "system"
+        operator: "Equal"
+        value: "core"
+        effect: "NoSchedule"
 
-        - name: slack-app
-          slack_configs:
-            - send_resolved: true
-              api_url_file: /etc/alertmanager/secrets/alertmanager-slack-secrets/slack-app-url
 
-        - name: slack-eks-infra
-          slack_configs:
-            - send_resolved: true
-              api_url_file: /etc/alertmanager/secrets/alertmanager-slack-secrets/slack-eks-url
+    grafana.ini:
+      server:
+        root_url: "%(protocol)s://%(domain)s/grafana/"
+        serve_from_sub_path: true
+      security:
+        allow_embedding: true
+      public_dashboards:
+        enabled: true
+      auth.anonymous:
+        enabled: true
+        org_role: Viewer
 
-        - name: slack-onprem-infra
-          slack_configs:
-            - send_resolved: true
-              api_url_file: /etc/alertmanager/secrets/alertmanager-slack-secrets/slack-onprem-url
 
-=======
-          
-      alertmanagerConfigSelector:
-        matchLabels:
-          alertmanagerConfig: ipiece
+    persistence:
+      enabled: true # ❌ 끄지 않기
+      storageClassName: gp2 # ❌ 바꾸지 않기
+      size: 10Gi # ❌ 줄이지/늘리지 않기 (늘릴 땐 별도 절차)
 
-      alertmanagerConfigNamespaceSelector: {}
-      
->>>>>>> origin/develop
+
+    additionalDataSources:
+      - name: Loki
+        type: loki
+        url: http://ipiece-loki:3100/
+        access: proxy
+
+
+  # 🔹 nodeExporter = DaemonSet (모든 노드에서 떠야 함)
+  #    → system taint 된 노드에서도 잘 돌 수 있게 tolerations만 추가
+  nodeExporter:
+    enabled: true
+    tolerations:
+      - key: "system"
+        operator: "Equal"
+        value: "core"
+        effect: "NoSchedule"
+
+
+  # 🔹 kube-state-metrics는 "시스템 컴포넌트"니까 system 노드에 고정
+  kube-state-metrics:
+    nodeSelector:
+      role: "system"
+    tolerations:
+      - key: "system"
+        operator: "Equal"
+        value: "core"
+        effect: "NoSchedule"
+
+
+
+  # ===== Alertmanager + Slack =====
+  alertmanager:
+    enabled: true
+
+
+    alertmanagerSpec:
+      nodeSelector:
+        role: "system"
+      tolerations:
+        - key: "system"
+          operator: "Equal"
+          value: "core"
+          effect: "NoSchedule"
+
+
+      # 이 시크릿을 Alertmanager Pod 안에 파일로 마운트
+      secrets:
+        - alertmanager-slack-secrets
+
+
+    config:
+      global:
+        resolve_timeout: 5m
+
+
+      route:
+        group_by: ['alertname', 'namespace']
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 4h
+        receiver: slack-main
+
+
+        routes:
+          - matchers:
+              - alert_team="app"
+            receiver: slack-app
+
+
+          - matchers:
+              - alert_team="infra"
+              - infra="eks"
+            receiver: slack-eks-infra
+
+
+          - matchers:
+              - alert_team="infra"
+              - infra="onprem"
+            receiver: slack-onprem-infra
+
+
+      receivers:
+        - name: slack-main
+          slack_configs:
+            - send_resolved: true
+              api_url_file: /etc/alertmanager/secrets/alertmanager-slack-secrets/slack-main-url
+
+
+        - name: slack-app
+          slack_configs:
+            - send_resolved: true
+              api_url_file: /etc/alertmanager/secrets/alertmanager-slack-secrets/slack-app-url
+
+
+        - name: slack-eks-infra
+          slack_configs:
+            - send_resolved: true
+              api_url_file: /etc/alertmanager/secrets/alertmanager-slack-secrets/slack-eks-url
+
+
+        - name: slack-onprem-infra
+          slack_configs:
+            - send_resolved: true
+              api_url_file: /etc/alertmanager/secrets/alertmanager-slack-secrets/slack-onprem-url
+
+
 # ==========================================
 # 2. Loki (S3 연동)
 # ==========================================
 loki-stack:
-  promtail:
-    enabled: false
+  promtail:
+    enabled: false
 
-  loki:
-    enabled: true
-    isDefault: false
-    fullnameOverride: ipiece-loki
 
-    # 🔹 Loki도 system 노드에 고정
-    nodeSelector:
-      role: "system"
-    tolerations:
-      - key: "system"
-        operator: "Equal"
-        value: "core"
-        effect: "NoSchedule"
+  loki:
+    enabled: true
+    isDefault: false
+    fullnameOverride: ipiece-loki
 
-    env:
-      - name: AWS_ACCESS_KEY_ID
-        valueFrom:
-          secretKeyRef:
-            name: loki-s3-secret
-            key: S3_AWS_ACCESS_KEY_ID
-      - name: AWS_SECRET_ACCESS_KEY
-        valueFrom:
-          secretKeyRef:
-            name: loki-s3-secret
-            key: S3_AWS_SECRET_ACCESS_KEY
 
-    config:
-      auth_enabled: false
+    # 🔹 Loki도 system 노드에 고정
+    nodeSelector:
+      role: "system"
+    tolerations:
+      - key: "system"
+        operator: "Equal"
+        value: "core"
+        effect: "NoSchedule"
 
-      server:
-        http_listen_port: 3100
-        grpc_listen_port: 9095
 
-      memberlist:
-        join_members:
-          - ipiece-loki-memberlist.monitoring.svc.cluster.local
+    env:
+      - name: AWS_ACCESS_KEY_ID
+        valueFrom:
+          secretKeyRef:
+            name: loki-s3-secret
+            key: S3_AWS_ACCESS_KEY_ID
+      - name: AWS_SECRET_ACCESS_KEY
+        valueFrom:
+          secretKeyRef:
+            name: loki-s3-secret
+            key: S3_AWS_SECRET_ACCESS_KEY
 
-      ingester:
-        lifecycler:
-          ring:
-            kvstore:
-              store: memberlist
-            replication_factor: 1
-          final_sleep: 0s
-        chunk_idle_period: 3m
-        chunk_retain_period: 1m
-        max_transfer_retries: 0
 
-      schema_config:
-        configs:
-          - from: 2024-01-01
-            store: boltdb-shipper
-            object_store: s3
-            schema: v11
-            index:
-              prefix: index_
-              period: 24h
+    config:
+      auth_enabled: false
 
-      storage_config:
-        aws:
-          bucketnames: ipiece-loki-store
-          endpoint: s3.ap-northeast-2.amazonaws.com
-          region: ap-northeast-2
-          s3forcepathstyle: false
-          insecure: false
 
-        boltdb_shipper:
-          shared_store: s3
-          active_index_directory: /data/loki/index
-          cache_location: /data/loki/index_cache
+      server:
+        http_listen_port: 3100
+        grpc_listen_port: 9095
 
-      compactor:
-        working_directory: /data/loki/boltdb-shipper-compactor
-        shared_store: s3
-        retention_enabled: true
 
-      limits_config:
-        retention_period: 30d
-        ingestion_rate_mb: 10
-        ingestion_burst_size_mb: 20
+      memberlist:
+        join_members:
+          - ipiece-loki-memberlist.monitoring.svc.cluster.local
+
+
+      ingester:
+        lifecycler:
+          ring:
+            kvstore:
+              store: memberlist
+            replication_factor: 1
+          final_sleep: 0s
+        chunk_idle_period: 3m
+        chunk_retain_period: 1m
+        max_transfer_retries: 0
+
+
+      schema_config:
+        configs:
+          - from: 2024-01-01
+            store: boltdb-shipper
+            object_store: s3
+            schema: v11
+            index:
+              prefix: index_
+              period: 24h
+
+
+      storage_config:
+        aws:
+          bucketnames: ipiece-loki-store
+          endpoint: s3.ap-northeast-2.amazonaws.com
+          region: ap-northeast-2
+          s3forcepathstyle: false
+          insecure: false
+
+
+        boltdb_shipper:
+          shared_store: s3
+          active_index_directory: /data/loki/index
+          cache_location: /data/loki/index_cache
+
+
+      compactor:
+        working_directory: /data/loki/boltdb-shipper-compactor
+        shared_store: s3
+        retention_enabled: true
+
+
+      limits_config:
+        retention_period: 30d
+        ingestion_rate_mb: 10
+        ingestion_burst_size_mb: 20
+
 
 # ==========================================
 # 3. OTel Collector AGENT (DaemonSet)
 # ==========================================
 otel:
-  mode: daemonset
-  image:
-    repository: otel/opentelemetry-collector-contrib
-    tag: "0.91.0"
+  mode: daemonset
+  image:
+    repository: otel/opentelemetry-collector-contrib
+    tag: "0.91.0"
 
-  # 🔹 DaemonSet라서 "모든 노드"에 떠야 함
-  #    → nodeSelector는 걸지 말고,
-  #      system 노드에 taint가 있어도 버티도록 tolerations만 추가
-  tolerations:
-    - key: "system"
-      operator: "Equal"
-      value: "core"
-      effect: "NoSchedule"
 
-  extraEnvs:
-    - name: K8S_NODE_NAME
-      valueFrom:
-        fieldRef:
-          fieldPath: spec.nodeName
-    - name: K8S_POD_NAME
-      valueFrom:
-        fieldRef:
-          fieldPath: metadata.name
-    - name: K8S_NAMESPACE
-      valueFrom:
-        fieldRef:
-          fieldPath: metadata.namespace
+  # 🔹 DaemonSet라서 "모든 노드"에 떠야 함
+  #    → nodeSelector는 걸지 말고,
+  #      system 노드에 taint가 있어도 버티도록 tolerations만 추가
+  tolerations:
+    - key: "system"
+      operator: "Equal"
+      value: "core"
+      effect: "NoSchedule"
 
-  extraVolumes:
-    - name: varlog
-      hostPath:
-        path: /var/log
-    - name: varlibdockercontainers
-      hostPath:
-        path: /var/lib/docker/containers
 
-  extraVolumeMounts:
-    - name: varlog
-      mountPath: /var/log
-      readOnly: true
-    - name: varlibdockercontainers
-      mountPath: /var/lib/docker/containers
-      readOnly: true
+  extraEnvs:
+    - name: K8S_NODE_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
+    - name: K8S_POD_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.name
+    - name: K8S_NAMESPACE
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.namespace
 
-  config:
-    # ✅ 1) health_check extension 추가 (readinessProbe 13133 대응)
-    extensions:
-      health_check:
-        endpoint: 0.0.0.0:13133
 
-    receivers:
-      hostmetrics:
-        collection_interval: 10s
-        scrapers:
-          cpu: {}
-          memory: {}
-          disk: {}
-          filesystem: {}
-          network: {}
-          load: {}
+  extraVolumes:
+    - name: varlog
+      hostPath:
+        path: /var/log
+    - name: varlibdockercontainers
+      hostPath:
+        path: /var/lib/docker/containers
 
-      kubeletstats:
-        auth_type: "serviceAccount"
-        endpoint: "${env:K8S_NODE_NAME}:10250"
-        insecure_skip_verify: true
-        collection_interval: 10s
-        metric_groups: [node, pod]
 
-      filelog:
-        include:
-          - /var/log/pods/*/*/*.log
-        include_file_path: true
-        include_file_name: false
-        start_at: end
-        multiline:
-          line_start_pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}"
+  extraVolumeMounts:
+    - name: varlog
+      mountPath: /var/log
+      readOnly: true
+    - name: varlibdockercontainers
+      mountPath: /var/lib/docker/containers
+      readOnly: true
 
-        operators:
-          - id: parser-cri
-            type: regex_parser
-            regex: '^(?P<time>[^ ]+) (?P<stream>stdout|stderr) (?P<logtag>[^ ]*) ?(?P<log>.*)$'
-            timestamp:
-              parse_from: attributes.time
-              layout: '%Y-%m-%dT%H:%M:%S.%LZ'
 
-          - id: extract_metadata_from_filepath
-            type: regex_parser
-            parse_from: attributes["log.file.path"]
-            # ✅ 오타 수정: (?Ptainer_name> → (?P<container_name>
-            regex: '^.*/(?P<namespace>[^_]+)_(?P<pod_name>.+)_(?P<pod_uid>[a-f0-9\-]{36})/(?P<container_name>.+)/(?P<restart_count>\d+)\.log$'
+  config:
+    # ✅ 1) health_check extension 추가 (readinessProbe 13133 대응)
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
 
-          - id: move-namespace
-            type: move
-            from: attributes["namespace"]
-            to: resource["k8s.namespace.name"]
-          - id: move-pod-name
-            type: move
-            from: attributes["pod_name"]
-            to: resource["k8s.pod.name"]
-          - id: move-container-name
-            type: move
-            from: attributes["container_name"]
-            to: resource["k8s.container.name"]
-          - id: clean-up-body
-            type: move
-            from: attributes["log"]
-            to: body
 
-      # [수정됨] Receiver에는 protocols 키가 필요합니다 (정상)
-      otlp:
-        protocols:
-          grpc:
-            endpoint: 0.0.0.0:4317
-          http:
-            endpoint: 0.0.0.0:4318
+    receivers:
+      hostmetrics:
+        collection_interval: 10s
+        scrapers:
+          cpu: {}
+          memory: {}
+          disk: {}
+          filesystem: {}
+          network: {}
+          load: {}
 
-    processors:
-      memory_limiter:
-        check_interval: 1s
-        limit_mib: 450
-        spike_limit_mib: 128
 
-      batch: {}
+      kubeletstats:
+        auth_type: "serviceAccount"
+        endpoint: "${env:K8S_NODE_NAME}:10250"
+        insecure_skip_verify: true
+        collection_interval: 10s
+        metric_groups: [node, pod]
 
-      k8sattributes:
-        auth_type: "serviceAccount"
-        passthrough: false
-        extract:
-          metadata:
-            - k8s.pod.name
-            - k8s.pod.uid
-            - k8s.namespace.name
-            - k8s.node.name
-        pod_association:
-          - sources:
-              - from: resource_attribute
-                name: k8s.pod.uid
 
-      resourcedetection:
-        detectors: [env, system, ec2]
+      filelog:
+        include:
+          - /var/log/pods/*/*/*.log
+        include_file_path: true
+        include_file_name: false
+        start_at: end
+        multiline:
+          line_start_pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}"
 
-      resource:
-        attributes:
-          - key: loki.resource.labels
-            action: insert
-            value: k8s.namespace.name, k8s.pod.name, k8s.container.name, k8s.node.name, cloud.availability_zone
 
-    exporters:
-      loki:
-        endpoint: "http://ipiece-loki.monitoring:3100/loki/api/v1/push"
-        tls:
-          insecure: true
+        operators:
+          - id: parser-cri
+            type: regex_parser
+            regex: '^(?P<time>[^ ]+) (?P<stream>stdout|stderr) (?P<logtag>[^ ]*) ?(?P<log>.*)$'
+            timestamp:
+              parse_from: attributes.time
+              layout: '%Y-%m-%dT%H:%M:%S.%LZ'
 
-      # [수정됨] Exporter에는 protocols 키를 사용하지 않습니다. endpoint만 지정합니다.
-      otlp:
-        endpoint: "ipiece-monitoring-otel-collector-gateway.monitoring.svc.cluster.local:4317"
-        tls:
-          insecure: true
 
-    service:
-      # ✅ 2) health_check extension 활성화
-      extensions: [health_check]
+          - id: extract_metadata_from_filepath
+            type: regex_parser
+            parse_from: attributes["log.file.path"]
+            # ✅ 오타 수정: (?Ptainer_name> → (?P<container_name>
+            regex: '^.*/(?P<namespace>[^_]+)_(?P<pod_name>.+)_(?P<pod_uid>[a-f0-9\-]{36})/(?P<container_name>.+)/(?P<restart_count>\d+)\.log$'
 
-      # ✅ 3) Prometheus가 긁어가는 metrics 포트(8888) 명시
-      telemetry:
-        metrics:
-          address: 0.0.0.0:8888
 
-      pipelines:
-        metrics:
-          receivers: [hostmetrics, kubeletstats, otlp]
-          processors: [batch]
-          exporters: [otlp]
+          - id: move-namespace
+            type: move
+            from: attributes["namespace"]
+            to: resource["k8s.namespace.name"]
+          - id: move-pod-name
+            type: move
+            from: attributes["pod_name"]
+            to: resource["k8s.pod.name"]
+          - id: move-container-name
+            type: move
+            from: attributes["container_name"]
+            to: resource["k8s.container.name"]
+          - id: clean-up-body
+            type: move
+            from: attributes["log"]
+            to: body
 
-        logs:
-          receivers: [filelog, otlp]
-          processors: [memory_limiter, k8sattributes, resource, batch, resourcedetection]
-          exporters: [loki]
 
-  serviceAccount:
-    create: true
+      # [수정됨] Receiver에는 protocols 키가 필요합니다 (정상)
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
 
-  clusterRole:
-    create: true
-    rules:
-      - apiGroups: [""]
-        resources: ["nodes", "nodes/stats", "pods", "namespaces", "nodes/proxy", "events"]
-        verbs: ["get", "watch", "list"]
-      - apiGroups: ["apps"]
-        resources: ["replicasets", "deployments"]
-        verbs: ["get", "list", "watch"]
-      - apiGroups: ["extensions"]
-        resources: ["replicasets"]
-        verbs: ["get", "list", "watch"]
+
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 450
+        spike_limit_mib: 128
+
+
+      batch: {}
+
+
+      k8sattributes:
+        auth_type: "serviceAccount"
+        passthrough: false
+        extract:
+          metadata:
+            - k8s.pod.name
+            - k8s.pod.uid
+            - k8s.namespace.name
+            - k8s.node.name
+        pod_association:
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.uid
+
+
+      resourcedetection:
+        detectors: [env, system, ec2]
+
+
+      resource:
+        attributes:
+          - key: loki.resource.labels
+            action: insert
+            value: k8s.namespace.name, k8s.pod.name, k8s.container.name, k8s.node.name, cloud.availability_zone
+
+
+    exporters:
+      loki:
+        endpoint: "http://ipiece-loki.monitoring:3100/loki/api/v1/push"
+        tls:
+          insecure: true
+
+
+      # [수정됨] Exporter에는 protocols 키를 사용하지 않습니다. endpoint만 지정합니다.
+      otlp:
+        endpoint: "ipiece-monitoring-otel-collector-gateway.monitoring.svc.cluster.local:4317"
+        tls:
+          insecure: true
+
+
+    service:
+      # ✅ 2) health_check extension 활성화
+      extensions: [health_check]
+
+
+      # ✅ 3) Prometheus가 긁어가는 metrics 포트(8888) 명시
+      telemetry:
+        metrics:
+          address: 0.0.0.0:8888
+
+
+      pipelines:
+        metrics:
+          receivers: [hostmetrics, kubeletstats, otlp]
+          processors: [batch]
+          exporters: [otlp]
+
+
+        logs:
+          receivers: [filelog, otlp]
+          processors: [memory_limiter, k8sattributes, resource, batch, resourcedetection]
+          exporters: [loki]
+
+
+  serviceAccount:
+    create: true
+
+
+  clusterRole:
+    create: true
+    rules:
+      - apiGroups: [""]
+        resources: ["nodes", "nodes/stats", "pods", "namespaces", "nodes/proxy", "events"]
+        verbs: ["get", "watch", "list"]
+      - apiGroups: ["apps"]
+        resources: ["replicasets", "deployments"]
+        verbs: ["get", "list", "watch"]
+      - apiGroups: ["extensions"]
+        resources: ["replicasets"]
+        verbs: ["get", "list", "watch"]
 # ==========================================
 # 4. OTel Collector GATEWAY (Java OTLP)
 # ==========================================
 otel-collector-gateway:
-  enabled: true
+  enabled: true
 
-  # 이 부분이 꼭 있어야 함 👇
-  image:
-    repository: otel/opentelemetry-collector-contrib
-    tag: "0.91.0"
 
-  mode: deployment
+  # 이 부분이 꼭 있어야 함 👇
+  image:
+    repository: otel/opentelemetry-collector-contrib
+    tag: "0.91.0"
 
-  service:
-    type: ClusterIP
 
-  # 🔹 Gateway는 "인프라 컴포넌트"니까 system 노드에만 띄움
-  nodeSelector:
-    role: "system"
-  tolerations:
-    - key: "system"
-      operator: "Equal"
-      value: "core"
-      effect: "NoSchedule"
+  mode: deployment
 
-  config:
-    receivers:
-      otlp:
-        protocols:
-          grpc:
-            endpoint: 0.0.0.0:4317
-          http:
-            endpoint: 0.0.0.0:4318
 
-    processors:
-      batch: {}
+  service:
+    type: ClusterIP
 
-    exporters:
-      loki:
-        endpoint: "http://ipiece-loki.monitoring:3100/loki/api/v1/push"
-        tls:
-          insecure: true
 
-      prometheusremotewrite:
-        endpoint: "http://prometheus-operated.monitoring:9090/api/v1/write"
-        tls:
-          insecure: true
+  # 🔹 Gateway는 "인프라 컴포넌트"니까 system 노드에만 띄움
+  nodeSelector:
+    role: "system"
+  tolerations:
+    - key: "system"
+      operator: "Equal"
+      value: "core"
+      effect: "NoSchedule"
 
-    service:
-      pipelines:
-        metrics:
-          receivers: [otlp]
-          processors: [batch]
-          exporters: [prometheusremotewrite]
 
-        logs:
-          receivers: [otlp]
-          processors: [batch]
-          exporters: [loki]
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+
+    processors:
+      batch: {}
+
+
+    exporters:
+      loki:
+        endpoint: "http://ipiece-loki.monitoring:3100/loki/api/v1/push"
+        tls:
+          insecure: true
+
+
+      prometheusremotewrite:
+        endpoint: "http://prometheus-operated.monitoring:9090/api/v1/write"
+        tls:
+          insecure: true
+
+
+    service:
+      pipelines:
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [prometheusremotewrite]
+
+
+        logs:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [loki]
