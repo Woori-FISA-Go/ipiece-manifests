@@ -1,25 +1,23 @@
-apiVersion: v1
-kind: Secret
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
 metadata:
-  name: alertmanager-ipiece-monitoring-kube-pro-alertmanager
+  name: ipiece-slack
   namespace: monitoring
   labels:
-    app.kubernetes.io/managed-by: manual
-stringData:
-  alertmanager.yaml: |
-    global:
-      resolve_timeout: 5m
-    
-    route:
-      receiver: slack-main
-      group_by: ['alertname', 'service']
-      group_wait: 30s
-      group_interval: 5m
-      repeat_interval: 4h
-    
-    receivers:
-      - name: slack-main
-        slack_configs:
-          - api_url_file: /etc/alertmanager/secrets/alertmanager-slack-webhook/slack_api_url
-            channel: '#ipiece-alarm'
-            send_resolved: true
+    alertmanagerConfig: ipiece
+spec:
+  route:
+    receiver: slack-main
+    groupBy: ['alertname', 'namespace']
+    groupWait: 30s
+    groupInterval: 5m
+    repeatInterval: 4h
+
+  receivers:
+    - name: slack-main
+      slackConfigs:
+        - apiURL:
+            name: alertmanager-slack-webhook   # Secret 이름
+            key: slack_api_url                 # 그 안의 key
+          channel: '#ipiece-alarm'
+          sendResolved: true

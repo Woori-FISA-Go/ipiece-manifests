@@ -104,12 +104,12 @@ kube-prometheus-stack:
           operator: "Equal"
           value: "core"
           effect: "NoSchedule"
-      
-      # Secret 마운트
-      secrets:
-        - alertmanager-slack-webhook
 
-      configSecret: alertmanager-ipiece-monitoring-kube-pro-alertmanager
+    alertmanagerConfigSelector:
+        matchLabels:
+          alertmanagerConfig: ipiece
+
+    alertmanagerConfigNamespaceSelector: {}  
       
 # ==========================================
 # 2. Loki (S3 연동)
