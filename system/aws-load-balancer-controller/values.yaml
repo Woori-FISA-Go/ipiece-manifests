@@ -11,7 +11,7 @@
 
   # 🔽 system 노드에서만 띄우기
   nodeSelector:
-    node-role.kubernetes.io/system: "true"
+    role: "system"
   tolerations:
     - key: "system"
       operator: "Equal"

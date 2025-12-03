@@ -21,7 +21,7 @@ spec:
       serviceAccountName: cluster-autoscaler
 
       nodeSelector:
-        node-role.kubernetes.io/system: "true"
+        role: "system"
       tolerations:
         - key: "system"
           operator: "Equal"

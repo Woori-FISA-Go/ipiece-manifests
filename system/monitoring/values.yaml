@@ -9,7 +9,7 @@ kube-prometheus-stack:
 
       # 🔹 Prometheus는 system 노드에 고정
       nodeSelector:
-        node-role.kubernetes.io/system: "true"
+        role: "system"
       tolerations:
         - key: "system"
           operator: "Equal"
@@ -27,11 +27,11 @@ kube-prometheus-stack:
       storageSpec:
         volumeClaimTemplate:
           spec:
-            storageClassName: gp2
+            storageClassName: gp2 # ❌ 바꾸지 않기
             accessModes: ["ReadWriteOnce"]
             resources:
               requests:
-                storage: 50Gi
+                storage: 50Gi  # ❌ 줄이거나 바꾸지 않기
 
   grafana:
     enabled: true
@@ -40,7 +40,7 @@ kube-prometheus-stack:
 
     # 🔹 Grafana도 system 노드에 고정
     nodeSelector:
-      node-role.kubernetes.io/system: "true"
+      role: "system"
     tolerations:
       - key: "system"
         operator: "Equal"
@@ -60,9 +60,9 @@ kube-prometheus-stack:
         org_role: Viewer
 
     persistence:
-      enabled: true
-      storageClassName: gp2
-      size: 10Gi
+      enabled: true # ❌ 끄지 않기
+      storageClassName: gp2 # ❌ 바꾸지 않기
+      size: 10Gi # ❌ 줄이지/늘리지 않기 (늘릴 땐 별도 절차)
 
     additionalDataSources:
       - name: Loki
@@ -83,7 +83,7 @@ kube-prometheus-stack:
   # 🔹 kube-state-metrics는 "시스템 컴포넌트"니까 system 노드에 고정
   kube-state-metrics:
     nodeSelector:
-      node-role.kubernetes.io/system: "true"
+      role: "system"
     tolerations:
       - key: "system"
         operator: "Equal"
@@ -98,7 +98,7 @@ kube-prometheus-stack:
     alertmanagerSpec:
       # system 노드에 고정
       nodeSelector:
-        node-role.kubernetes.io/system: "true"
+        role: "system"
       tolerations:
         - key: "system"
           operator: "Equal"
@@ -125,7 +125,7 @@ loki-stack:
 
     # 🔹 Loki도 system 노드에 고정
     nodeSelector:
-      node-role.kubernetes.io/system: "true"
+      role: "system"
     tolerations:
       - key: "system"
         operator: "Equal"
@@ -415,7 +415,7 @@ otel-collector-gateway:
 
   # 🔹 Gateway는 "인프라 컴포넌트"니까 system 노드에만 띄움
   nodeSelector:
-    node-role.kubernetes.io/system: "true"
+    role: "system"
   tolerations:
     - key: "system"
       operator: "Equal"
