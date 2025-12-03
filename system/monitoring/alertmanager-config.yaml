@@ -13,28 +13,21 @@ spec:
     repeatInterval: 4h
 
     routes:
+      # 앱 알람
       - matchers:
-          - name: alert_team
-            value: app
-            regex: false
+          - 'alert_team="app"'
         receiver: slack-app
 
+      # EKS 인프라 알람
       - matchers:
-          - name: alert_team
-            value: infra
-            regex: false
-          - name: infra
-            value: eks
-            regex: false
+          - 'alert_team="infra"'
+          - 'infra="eks"'
         receiver: slack-eks-infra
 
+      # 온프렘 인프라 알람
       - matchers:
-          - name: alert_team
-            value: infra
-            regex: false
-          - name: infra
-            value: onprem
-            regex: false
+          - 'alert_team="infra"'
+          - 'infra="onprem"'
         receiver: slack-onprem-infra
 
     receiver: slack-main
