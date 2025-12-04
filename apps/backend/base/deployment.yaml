@@ -110,10 +110,10 @@ spec:
           resources:
             requests:
               memory: "512Mi"
-              cpu: "500m"
+              cpu: "150m"
             limits:
               memory: "1Gi"
-              cpu: "1000m"
+              cpu: "500m"
 
           # 🟢 부팅 + 부하시 너무 예민하게 죽지 않도록 완화된 프로브 설정
           startupProbe:
