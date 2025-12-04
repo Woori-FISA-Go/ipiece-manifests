@@ -12,7 +12,7 @@ spec:
     name: ipiece-server
 
   # 🔹 워커 노드 4대 기준
-  minReplicas: 4          # 기본 4개 유지 (각 노드 1개 이상)
+  minReplicas: 6          # 기본 4개 유지 (각 노드 1개 이상)
   maxReplicas: 20         # 피크 시 여유
 
   # 🔹 CPU 사용률 기준 오토스케일링

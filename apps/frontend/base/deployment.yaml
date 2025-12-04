@@ -5,9 +5,7 @@ metadata:
   labels:
     app: ipiece-frontend
 spec:
-  # 기본값은 1로 두고, overlays/prod에서 2로 덮어쓰는 게 정석이지만
-  # 현재 설정상 2로 두셔도 overlays가 덮어쓰므로 상관없습니다.
-  replicas: 2
+  replicas: 3
   selector:
     matchLabels:
       app: ipiece-frontend
