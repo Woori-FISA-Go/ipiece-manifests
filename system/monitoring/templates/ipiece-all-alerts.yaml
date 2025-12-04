@@ -43,7 +43,12 @@ spec:
         alert_team: app
       annotations:
         summary: "🔴 ipiece-backend 5xx 에러 발생 (전역)"
-        description: "최근 5분 동안 5xx RPS가 0.05를 초과했고, 전체 RPS>1입니다. 현재 5xx RPS={{`{{`}} $value {{`}}`}}"
+        description: >
+          최근 5분 동안 전체 5xx RPS가 0.05를 초과했고 전체 RPS>1인 상태입니다. 현재 5xx RPS={{`{{`}} $value {{`}}`}}로, 서비스 전반에 의미 있는 에러 증가가 발생한 상황입니다.
+          우선 Grafana 'IPiece - Backend HTTP (Node Summary / HA)' 대시보드에서 전체/노드별 RPS, 5xx 비율, 엔드포인트별 에러 분포를 확인하고, Admin 시스템 모니터링(클라우드 시스템 > ALB Dashboard)에서 UnHealthy targets·HTTP 5XX·Rejected Connections가 같이 튀는지 Cross-check합니다.
+          이후 세부 원인 분석과 조치 순서는 runbook 문서의 [전역 5xx 급증] 시나리오를 따라가면 됩니다.
+        grafana_dashboard_url: "https://ipiece.store/grafana/d/ipiece-http-node-summary-ha"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-backend-http-2bf16f0f367080bfae27d7a5b0c2d9dc?source=copy_link"
 
     # 1-보강) 5xx가 1건이라도 발생하면 알려주는 경고
     - alert: BackendAny5xx
@@ -64,7 +69,12 @@ spec:
         alert_team: app
       annotations:
         summary: "🟡 ipiece-backend 5xx 응답 발생"
-        description: "최근 5분 동안 5xx 응답이 1건 이상 발생했습니다. 현재 5xx RPS={{`{{`}} $value {{`}}`}}"
+        description: >
+          최근 5분 동안 5xx 응답이 1건 이상 발생했습니다. 현재 5xx RPS={{`{{`}} $value {{`}}`}}이며, 장애로 번지기 전 초기 징후를 잡기 위한 경고입니다.
+          Grafana 'IPiece - Backend HTTP (Node Summary / HA)'에서 에러 요청 수·에러율(5xx)·URI별 RPS를 함께 보고, 특정 엔드포인트나 노드에 패턴이 있는지 확인합니다.
+          ALB Health 상태는 Admin 모니터링(클라우드 시스템 > ALB)에서 Healthy/UnHealthy targets와 ELB 5xx를 같이 보면서 진단합니다.
+        grafana_dashboard_url: "https://ipiece.store/grafana/d/ipiece-http-node-summary-ha"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-backend-http-2bf16f0f367080bfae27d7a5b0c2d9dc?source=copy_link"
 
     # 2) 노드별 5xx 비율이 1% 이상 (충분한 트래픽일 때만)
     - alert: BackendHigh5xxErrorRatioPerNode
@@ -107,7 +117,12 @@ spec:
         alert_team: app
       annotations:
         summary: "🟡 노드별 5xx 비율 1% 초과"
-        description: "노드 {{`{{`}} $labels.k8s_node_name {{`}}`}} 에러율={{`{{`}} printf \"%.2f\" $value {{`}}`}}% (RPS>1인 노드만 대상)"
+        description: >
+          노드 {{`{{`}} $labels.k8s_node_name {{`}}`}}의 HTTP 5xx 비율이 1%를 넘고 RPS>1인 상태가 5분 이상 지속되었습니다. 특정 노드에만 에러가 몰리는 패턴(노드 상태·네트워크·디스크 이슈 등)을 잡기 위한 알람입니다.
+          Grafana 'IPiece - Backend HTTP (Node Summary / HA)'의 노드별 Error Rate(5xx) 타임시리즈와 Per Pod/Endpoint 테이블을 보면서, 해당 노드의 특정 파드나 URI에 에러가 집중되는지 확인합니다.
+          필요한 경우 클라우드 시스템 탭에서 Node/EKS 대시보드로 이동해 해당 노드의 CPU·메모리·디스크 상태를 함께 점검합니다.
+        grafana_dashboard_url: "https://ipiece.store/grafana/d/ipiece-http-node-summary-ha"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-backend-http-2bf16f0f367080bfae27d7a5b0c2d9dc?source=copy_link"
 
     # 3) 평균 레이턴시 1초 이상 + RPS>1 인 엔드포인트
     - alert: BackendSlowEndpointAvgLatency
@@ -147,7 +162,12 @@ spec:
         alert_team: app
       annotations:
         summary: "🟡 느린 엔드포인트 (평균 > 1s)"
-        description: "{{`{{`}} $labels.method {{`}}`}} {{`{{`}} $labels.uri {{`}}`}} 평균={{`{{`}} printf \"%.0f\" $value {{`}}`}}ms, RPS>1"
+        description: >
+          {{`{{`}} $labels.method {{`}}`}} {{`{{`}} $labels.uri {{`}}`}} 평균 레이턴시가 {{`{{`}} printf "%.0f" $value {{`}}`}}ms 이상이고 RPS>1인 상태가 유지되고 있습니다. 사용자가 체감할 수 있는 병목 API를 조기에 포착하기 위한 알람입니다.
+          Grafana 'IPiece - Backend HTTP (Node Summary / HA)'의 Per Endpoint RPS와 Slow Endpoint Avg Latency 테이블에서 해당 URI를 필터링해, 트래픽 규모 대비 응답 시간이 얼마나 비정상적인지 확인합니다.
+          이후 DB·외부 API·캐시 등 의존 시스템의 상태는 온프레/클라우드 서비스(RDS, Sensitive DB) 대시보드 지표와 함께 Cross-check합니다.
+        grafana_dashboard_url: "https://ipiece.store/grafana/d/ipiece-http-node-summary-ha"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-backend-http-2bf16f0f367080bfae27d7a5b0c2d9dc?source=copy_link"
 
     # 4) 전체 트래픽 급감 (거의 0)
     - alert: BackendTrafficDropToZero
@@ -167,7 +187,12 @@ spec:
         alert_team: app
       annotations:
         summary: "🔴 백엔드 트래픽 거의 0"
-        description: "전체 RPS={{`{{`}} $value {{`}}`}} (<0.1). 배포/점검 시간이 아니면 장애 의심"
+        description: >
+          전체 HTTP RPS={{`{{`}} $value {{`}}`}} (<0.1)로 요청이 사실상 끊긴 상태입니다. 계획된 배포/점검 시간이 아니라면 라우팅·DNS·ALB·Ingress 문제나 백엔드 전체 장애 가능성이 높습니다.
+          Grafana 'IPiece - Backend HTTP (Node Summary / HA)'에서 전체 RPS 타임라인과 배포 Annotation, 노드별 RPS를 확인해 특정 노드/가용영역만 죽었는지, 전체 트래픽이 끊겼는지 먼저 구분합니다.
+          동시에 Admin 시스템 모니터링(클라우드 시스템 > ALB)에서 Active/New/Rejected Connections와 UnHealthy targets를 확인해, ALB 레벨 문제 여부를 점검합니다.
+        grafana_dashboard_url: "https://ipiece.store/grafana/d/ipiece-http-node-summary-ha"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-backend-http-2bf16f0f367080bfae27d7a5b0c2d9dc?source=copy_link"
 
     # 5) 특정 노드에만 트래픽이 거의 안 들어오는 경우
     - alert: BackendNodeNoTraffic
@@ -198,7 +223,12 @@ spec:
         alert_team: app
       annotations:
         summary: "🟡 특정 노드 RPS 거의 0"
-        description: "노드 {{`{{`}} $labels.k8s_node_name {{`}}`}} 로 들어오는 트래픽이 거의 없습니다. (전체 RPS>1 기준)"
+        description: >
+          전체 RPS는 유지되지만 노드 {{`{{`}} $labels.k8s_node_name {{`}}`}} 로 유입되는 트래픽이 거의 0에 가깝습니다. 로드밸런서 대상 그룹, Service/Endpoint, 노드 상태 문제로 특정 노드만 라우팅에서 빠진 상황일 수 있습니다.
+          Grafana 'IPiece - Backend HTTP (Node Summary / HA)'의 노드별 RPS 패널에서 해당 노드 라인이 0 근처로 떨어지는지 확인하고, 클라우드 시스템 > Node/EKS 대시보드에서 노드 Ready 상태·리소스 사용량을 함께 봅니다.
+          이후 kubectl get endpoints/service, ALB Target Group Health 등을 순서대로 점검해 원인을 좁혀갑니다.
+        grafana_dashboard_url: "https://ipiece.store/grafana/d/ipiece-http-node-summary-ha"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-backend-http-2bf16f0f367080bfae27d7a5b0c2d9dc?source=copy_link"
 
     # 6) 노드 간 트래픽 불균형 (최댓값이 평균의 2배 초과)
     - alert: BackendNodeTrafficImbalance
@@ -238,10 +268,14 @@ spec:
         alert_team: app
       annotations:
         summary: "🔵 노드 간 트래픽 불균형"
-        description: "가장 많이 받는 노드 RPS가 평균의 2배를 10분 이상 초과합니다."
+        description: >
+          가장 많은 트래픽을 받는 노드의 RPS가 평균의 2배를 10분 이상 초과하고 있습니다. 특정 노드에 부하가 과도하게 쏠리는지 관찰하기 위한 정보성 알람입니다.
+          Grafana 'IPiece - Backend HTTP (Node Summary / HA)'의 노드별 RPS·5xx 그래프에서 특정 노드에 부하와 에러가 동시에 몰리는지 보고, 필요 시 HPA/PodAntiAffinity/노드 그룹 구성을 조정합니다.
+          장기적으로는 runbook의 [트래픽 불균형] 가이드에 따라 라우팅/스케줄링 정책을 개선합니다.
+        grafana_dashboard_url: "https://ipiece.store/grafana/d/ipiece-http-node-summary-ha"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-backend-http-2bf16f0f367080bfae27d7a5b0c2d9dc?source=copy_link"
 
-    # 7) (선택) 백엔드에서 DB 연결 오류가 발생할 때
-    #    db_connection_errors_total 메트릭이 있을 때만 효과가 있습니다.
+    # 7) 백엔드에서 DB 연결 오류가 발생할 때
     - alert: BackendDbConnectionErrors
       expr: |
         increase(db_connection_errors_total[5m]) > 0
@@ -252,7 +286,12 @@ spec:
         alert_team: app
       annotations:
         summary: "🟡 백엔드 DB 연결 오류 발생"
-        description: "최근 5분 동안 DB 연결 오류가 {{`{{`}} printf \"%.0f\" $value {{`}}`}}회 발생했습니다."
+        description: >
+          최근 5분 동안 DB 연결 오류가 {{`{{`}} printf "%.0f" $value {{`}}`}}회 발생했습니다. 어플리케이션 로직 오류보다는 DB 인프라/네트워크 문제에 기인한 장애일 가능성이 높습니다.
+          Grafana 'IPiece - Backend HTTP (Node Summary / HA)'에서 HTTP 5xx 패턴을 보고, 온프레 System Health - DB Nodes·Sensitive DB 대시보드에서 CPU·메모리·디스크·슬로우 쿼리 지표와 로그를 함께 확인합니다.
+          조치 순서는 [DB 연결 오류] runbook에 정의된 단계(연결 수 확인 → 장애 노드 격리/Failover → 쿼리/커넥션 튜닝)를 차례로 수행합니다.
+        grafana_dashboard_url: "https://ipiece.store/grafana/d/ipiece-http-node-summary-ha"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-backend-http-2bf16f0f367080bfae27d7a5b0c2d9dc?source=copy_link"
 
   # --------------------------
   # B. K8s 가용성/자원 알람
@@ -275,7 +314,11 @@ spec:
         infra: eks
       annotations:
         summary: "🔴 ipiece-server 파드 수 부족"
-        description: "가용 파드 수={{`{{`}} $value {{`}}`}} (<2)"
+        description: >
+          ipiece-server 가용 파드 수={{`{{`}} $value {{`}}`}} (<2)로, 트래픽 처리 여유가 크게 줄어든 상태입니다. CrashLoopBackOff·ImagePullError·리소스 부족 등으로 새 파드가 뜨지 못하는지 확인해야 합니다.
+          Admin 시스템 모니터링(클라우드 시스템 > Node/EKS)과 kube-prometheus Workloads 대시보드에서 Deployment 상태·파드 수·노드 리소스를 보고, kubectl describe deployment/pod로 이벤트를 함께 확인합니다.
+        grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system&infra=cloud-system"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-k8s-core-2bf16f0f3670803585ade3b9538fb468?source=copy_link"
 
     # ipiece-server 원하는 레플리카 수와 실제 가용 수 불일치
     - alert: IpieceServerReplicaMismatch
@@ -284,7 +327,7 @@ spec:
           namespace="default",
           deployment="ipiece-server"
         }
-        ==
+        !=
         kube_deployment_status_replicas_available{
           namespace="default",
           deployment="ipiece-server"
@@ -297,7 +340,11 @@ spec:
         infra: eks
       annotations:
         summary: "🟡 ipiece-server 레플리카 불일치"
-        description: "원하는 레플리카 수와 가용 레플리카 수가 5분 이상 일치하지 않습니다."
+        description: >
+          원하는 레플리카 수와 실제 가용 레플리카 수가 5분 이상 일치하지 않고 있습니다. 롤링 업데이트/스케일링 중 정상적인 상태인지, 특정 파드만 반복해서 실패하는 비정상 상태인지 구분해야 합니다.
+          kube-prometheus Workloads·Pods 대시보드와 kubectl describe를 통해 Unavailable 파드의 상태·이벤트를 확인하고, 필요 시 배포 롤백이나 리소스 조정을 검토합니다.
+        grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system&infra=cloud-system"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-k8s-core-2bf16f0f3670803585ade3b9538fb468?source=copy_link"
 
     # ipiece-server HPA 스케일 업 (정보용)
     - alert: IpieceServerScaledUp
@@ -314,7 +361,11 @@ spec:
         infra: eks
       annotations:
         summary: "🔵 ipiece-server HPA 스케일 업"
-        description: "현재 레플리카 수={{`{{`}} $value {{`}}`}} (>2). 부하에 따라 자동 확장되었습니다."
+        description: >
+          ipiece-server 현재 레플리카 수가 {{`{{`}} $value {{`}}`}} (>2)로 자동 확장되었습니다. 피크 타임·배치 시간대 등 부하 패턴을 이해하고, HPA 설정이 의도대로 동작하는지 관찰하는 용도의 정보성 알람입니다.
+          HTTP 골든 시그널 대시보드와 클라우드 시스템 > Node/EKS 대시보드를 같이 열어, 레이턴시·에러율·CPU 사용률과 스케일 이벤트가 자연스럽게 대응되는지 확인합니다.
+        grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system&infra=cloud-system"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-k8s-core-2bf16f0f3670803585ade3b9538fb468?source=copy_link"
 
     # ipiece-server 컨테이너 재시작 감지
     - alert: IpieceServerContainerRestarts
@@ -335,7 +386,11 @@ spec:
         infra: eks
       annotations:
         summary: "🟡 ipiece-server 컨테이너 재시작"
-        description: "최근 5분 동안 {{`{{`}} $labels.pod {{`}}`}} / {{`{{`}} $labels.container {{`}}`}} 재시작 발생 (증가={{`{{`}} $value {{`}}`}})"
+        description: >
+          최근 5분 동안 {{`{{`}} $labels.pod {{`}}`}} / {{`{{`}} $labels.container {{`}}`}} 컨테이너에서 재시작이 {{`{{`}} $value {{`}}`}}회 이상 발생했습니다. OOM, CrashLoop, 설정/시크릿 오류 등 다양한 원인이 있을 수 있습니다.
+          클라우드 시스템 > Node/EKS 대시보드에서 해당 노드 리소스 사용량을 보고, kubectl logs/describe로 종료 원인과 공통 에러 패턴을 파악합니다.
+        grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system&infra=cloud-system"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-k8s-core-2bf16f0f3670803585ade3b9538fb468?source=copy_link"
 
     # ipiece-server HPA 최대 레플리카 도달
     - alert: IpieceServerHpaMaxedOut
@@ -357,7 +412,11 @@ spec:
         infra: eks
       annotations:
         summary: "🟡 ipiece-server HPA 최대 레플리카 도달"
-        description: "현재 레플리카 수가 HPA 최대값에 10분 이상 도달해 있습니다."
+        description: >
+          현재 레플리카 수가 HPA에서 설정한 최대값에 10분 이상 도달해 있습니다. 더 이상 자동 확장이 되지 않는 상태에서 부하가 계속 증가하면 레이턴시 급등·에러율 상승으로 이어질 수 있습니다.
+          HTTP 골든 시그널·Node/EKS 대시보드를 보면서 레이턴시·에러율·노드 리소스를 함께 확인하고, 필요 시 HPA 상한 상향 또는 코드/쿼리 최적화를 runbook 기준에 맞춰 검토합니다.
+        grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system&infra=cloud-system"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-k8s-core-2bf16f0f3670803585ade3b9538fb468?source=copy_link"
 
     # 노드 메모리 사용률 과다 (90% 이상)
     - alert: NodeHighMemoryUsage
@@ -373,7 +432,11 @@ spec:
         infra: eks
       annotations:
         summary: "🟡 노드 메모리 사용률 90% 초과"
-        description: "노드 {{`{{`}} $labels.instance {{`}}`}} 메모리 사용률={{`{{`}} printf \"%.1f\" $value {{`}}`}}%"
+        description: >
+          노드 {{`{{`}} $labels.instance {{`}}`}}의 메모리 사용률이 {{`{{`}} printf "%.1f" $value {{`}}`}}%로 90%를 넘었습니다. 여유 메모리가 거의 없어 OOMKill·스케줄 실패 등으로 이어질 수 있는 상태입니다.
+          kube-prometheus 'Nodes' 대시보드와 클라우드 시스템 탭에서 해당 노드의 파드 메모리 상위 목록을 확인해, 어떤 워크로드가 메모리를 가장 많이 쓰는지 파악합니다.
+        grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system&infra=cloud-system"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-k8s-core-2bf16f0f3670803585ade3b9538fb468?source=copy_link"
 
     # 노드 CPU 사용률 과다 (90% 이상)
     - alert: NodeHighCpuUsage
@@ -391,7 +454,11 @@ spec:
         infra: eks
       annotations:
         summary: "🟡 노드 CPU 사용률 90% 초과"
-        description: "노드 {{`{{`}} $labels.instance {{`}}`}} CPU 사용률={{`{{`}} printf \"%.1f\" $value {{`}}`}}%"
+        description: >
+          노드 {{`{{`}} $labels.instance {{`}}`}}의 CPU 사용률이 {{`{{`}} printf "%.1f" $value {{`}}`}}%로 90%를 넘습니다. CPU 포화로 인해 스로틀링·레이턴시 증가·HPA 과도 스케일링이 연쇄적으로 발생할 수 있습니다.
+          노드/파드별 CPU 상위 지표와 스로틀링 지표를 확인해 특정 파드 폭주인지, 전체 리소스 부족인지 구분하고, 필요 시 스케일 아웃이나 리퀘스트/리밋 조정을 진행합니다.
+        grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system&infra=cloud-system"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-k8s-core-2bf16f0f3670803585ade3b9538fb468?source=copy_link"
 
     # 노드 Ready 상태 이상 (워커 노드 장애 감지)
     - alert: NodeNotReady
@@ -408,10 +475,14 @@ spec:
         infra: eks
       annotations:
         summary: "🔴 Kubernetes 노드 NotReady 상태"
-        description: "노드 {{`{{`}} $labels.node {{`}}`}} 가 5분 이상 Ready가 아닙니다."
+        description: >
+          노드 {{`{{`}} $labels.node {{`}}`}} 가 5분 이상 Ready가 아닌 상태입니다. 해당 노드에 있던 파드들이 재스케줄·중단될 수 있고, 전체 워크로드 용량에도 영향을 줍니다.
+          클라우드 콘솔과 클라우드 시스템 > Node/EKS 대시보드에서 노드 리소스/이벤트를 확인하고, 필요 시 cordon/drain·재부팅·노드 교체 절차를 runbook에 따라 수행합니다.
+        grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system&infra=cloud-system"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-k8s-core-2bf16f0f3670803585ade3b9538fb468?source=copy_link"
 
   # --------------------------
-  # C. ipiece 온프레 코어 (RPC/DB)
+  # C. ipiece 온프레 코어 (RPC/DB/Validator)
   # --------------------------
   - name: ipiece-onprem-core
     interval: 30s
@@ -435,7 +506,11 @@ spec:
         infra: onprem
       annotations:
         summary: "🟡 RPC 노드 CPU 사용률 80% 초과"
-        description: "{{`{{`}} $labels.job {{`}}`}} CPU 사용률={{`{{`}} printf \"%.1f\" $value {{`}}`}}% (5분 평균)"
+        description: >
+          {{`{{`}} $labels.job {{`}}`}} CPU 사용률이 {{`{{`}} printf "%.1f" $value {{`}}`}}% (5분 평균)로, 온프레 RPC 노드에 고부하가 걸린 상태입니다. 체인 동기화·외부 요청 폭증·재시도 폭주 등이 없는지 확인해야 합니다.
+          Admin 시스템 모니터링(온프레미스 탭)의 'RPC' 카드와 Grafana 'System Health - RPC Nodes' 대시보드에서 CPU Usage·Resource Trends·Error Logs 패널을 함께 확인합니다.
+        grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system&infra=onprem"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-RPC-DB-Validator-2bf16f0f36708092b91fc99beec29f94?source=copy_link"
 
     # RPC 노드 메모리 사용률 과다 (> 90%)
     - alert: OnpremRpcHighMemoryUsage
@@ -462,7 +537,11 @@ spec:
         infra: onprem
       annotations:
         summary: "🟡 RPC 노드 메모리 사용률 90% 초과"
-        description: "{{`{{`}} $labels.job {{`}}`}} 메모리 사용률={{`{{`}} printf \"%.1f\" $value {{`}}`}}%"
+        description: >
+          {{`{{`}} $labels.job {{`}}`}} 메모리 사용률이 {{`{{`}} printf "%.1f" $value {{`}}`}}%를 넘고 있습니다. 캐시/버퍼 증가나 메모리 누수, 피어 수 과다 등으로 인한 메모리 압박 가능성이 있습니다.
+          온프레 'System Health - RPC Nodes' 대시보드의 Memory Usage(%)/Trend 패널에서 증가 패턴과 swap 사용 여부를 확인하고, 필요 시 캐시·피어 수·파라미터를 조정합니다.
+        grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system&infra=onprem"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-RPC-DB-Validator-2bf16f0f36708092b91fc99beec29f94?source=copy_link"
 
     # RPC 노드 Root 디스크 사용률 과다 (/) > 90%
     - alert: OnpremRpcRootFsHighUsage
@@ -490,7 +569,11 @@ spec:
         infra: onprem
       annotations:
         summary: "🟡 RPC 노드 Root(/) 디스크 사용률 90% 초과"
-        description: "{{`{{`}} $labels.job {{`}}`}} Root(/) 사용률={{`{{`}} printf \"%.1f\" $value {{`}}`}}%"
+        description: >
+          {{`{{`}} $labels.job {{`}}`}} Root(/) 디스크 사용률이 {{`{{`}} printf "%.1f" $value {{`}}`}}%로, 여유 공간이 거의 없습니다. 로그·체인 데이터가 계속 쌓이면 서비스 중단이나 데이터 손상으로 이어질 수 있습니다.
+          'System Health - RPC Nodes'의 Disk Root(/) Usage(%)/Disk I/O Throughput 패널과 실제 서버 df/du 결과를 함께 보고, 정리·아카이브·파티션 분리 우선순위를 결정합니다.
+        grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system&infra=onprem"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-RPC-DB-Validator-2bf16f0f36708092b91fc99beec29f94?source=copy_link"
 
     # DB 노드 CPU 사용률 과다 (평균 > 80%)
     - alert: OnpremDbHighCpuUsage
@@ -511,7 +594,11 @@ spec:
         infra: onprem
       annotations:
         summary: "🟡 DB 노드 CPU 사용률 80% 초과"
-        description: "{{`{{`}} $labels.job {{`}}`}} CPU 사용률={{`{{`}} printf \"%.1f\" $value {{`}}`}}% (5분 평균)"
+        description: >
+          {{`{{`}} $labels.job {{`}}`}} CPU 사용률이 {{`{{`}} printf "%.1f" $value {{`}}`}}% (5분 평균)를 넘고 있습니다. 슬로우 쿼리 폭증·풀 스캔·대량 배치 작업 등으로 DB가 포화된 상황일 수 있습니다.
+          'System Health - DB Nodes' 대시보드의 CPU Usage/Resource Trends와 슬로우 쿼리 로그 패널을 함께 보면서 문제 쿼리나 작업을 식별합니다.
+        grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system&infra=onprem"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-RPC-DB-Validator-2bf16f0f36708092b91fc99beec29f94?source=copy_link"
 
     # DB 노드 메모리 사용률 과다 (> 90%)
     - alert: OnpremDbHighMemoryUsage
@@ -538,7 +625,11 @@ spec:
         infra: onprem
       annotations:
         summary: "🟡 DB 노드 메모리 사용률 90% 초과"
-        description: "{{`{{`}} $labels.job {{`}}`}} 메모리 사용률={{`{{`}} printf \"%.1f\" $value {{`}}`}}%"
+        description: >
+          {{`{{`}} $labels.job {{`}}`}} 메모리 사용률이 {{`{{`}} printf "%.1f" $value {{`}}`}}%로, 버퍼 캐시·쿼리 캐시·연결 수 등이 메모리를 거의 소진한 상태입니다. 이 상태가 지속되면 OOM 또는 심각한 스왑으로 이어질 수 있습니다.
+          'System Health - DB Nodes'의 Memory Usage/Trend와 커넥션 수·쿼리 상태 지표를 함께 확인해, 원인을 파악하고 필요 시 커넥션 풀·쿼리·파라미터를 조정합니다.
+        grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system&infra=onprem"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-RPC-DB-Validator-2bf16f0f36708092b91fc99beec29f94?source=copy_link"
 
     # DB 노드 Root 디스크 사용률 과다 (/) > 90%
     - alert: OnpremDbRootFsHighUsage
@@ -566,7 +657,99 @@ spec:
         infra: onprem
       annotations:
         summary: "🟡 DB 노드 Root(/) 디스크 사용률 90% 초과"
-        description: "{{`{{`}} $labels.job {{`}}`}} Root(/) 사용률={{`{{`}} printf \"%.1f\" $value {{`}}`}}%"
+        description: >
+          {{`{{`}} $labels.job {{`}}`}} Root(/) 사용률이 {{`{{`}} printf "%.1f" $value {{`}}`}}%로, DB 바이너리·로그·백업·OS 파일이 섞여 있는 파티션이 거의 가득 찬 상태입니다. 더 이상 여유 공간이 없으면 트랜잭션 실패·로그 기록 실패 위험이 큽니다.
+          'System Health - DB Nodes'의 Disk Root(/) Usage(%)/Network & I/O 패널과 서버 df/du 결과를 함께 보면서, 어떤 디렉터리부터 정리·아카이브할지 결정합니다.
+        grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system&infra=onprem"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-RPC-DB-Validator-2bf16f0f36708092b91fc99beec29f94?source=copy_link"
+
+    # Validator 노드 CPU 사용률 과다 (평균 > 80%)
+    - alert: OnpremValidatorHighCpuUsage
+      expr: |
+        100 - (
+          avg by (job)(
+            rate(system_cpu_time_seconds_total{
+              job=~"val[1-4]",
+              state="idle"
+            }[5m])
+          ) * 100
+        ) > 80
+      for: 5m
+      labels:
+        severity: warning
+        scope: onprem-validator
+        alert_team: infra
+        infra: onprem
+      annotations:
+        summary: "🟡 Validator 노드 CPU 사용률 80% 초과"
+        description: >
+          {{`{{`}} $labels.job {{`}}`}} CPU 사용률={{`{{`}} printf "%.1f" $value {{`}}`}}% (5분 평균)로, Validator가 블록 처리·검증 작업으로 포화 상태에 가깝습니다. 블록 높이·Tx 처리량·피어 수를 함께 보면서 정상 트래픽인지, 비정상적인 재시도/리오그 상황인지 판단해야 합니다.
+          온프레 'System Health - Validator Nodes' 대시보드에서 CPU Usage/Resource Trends·블록 처리량 지표를 함께 확인합니다.
+        grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system&infra=onprem"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-RPC-DB-Validator-2bf16f0f36708092b91fc99beec29f94?source=copy_link"
+
+    # Validator 노드 메모리 사용률 과다 (> 90%)
+    - alert: OnpremValidatorHighMemoryUsage
+      expr: |
+        (1 - (
+          sum by (job)(
+            system_memory_usage_bytes{
+              job=~"val[1-4]",
+              state="free"
+            }
+          )
+          /
+          sum by (job)(
+            system_memory_usage_bytes{
+              job=~"val[1-4]"
+            }
+          )
+        )) * 100 > 90
+      for: 5m
+      labels:
+        severity: warning
+        scope: onprem-validator
+        alert_team: infra
+        infra: onprem
+      annotations:
+        summary: "🟡 Validator 노드 메모리 사용률 90% 초과"
+        description: >
+          {{`{{`}} $labels.job {{`}}`}} 메모리 사용률={{`{{`}} printf "%.1f" $value {{`}}`}}%로, 체인 상태/블록/캐시 등이 메모리를 대부분 점유하고 있습니다. 이 상태에서 추가 부하가 오면 GC·스왑·OOM으로 블록 생성·검증이 지연될 수 있습니다.
+          'System Health - Validator Nodes'의 Memory Usage/Trend와 관련 노드 로그를 함께 확인해, pruning/캐시 설정·노드 스펙이 적절한지 평가합니다.
+        grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system&infra=onprem"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-RPC-DB-Validator-2bf16f0f36708092b91fc99beec29f94?source=copy_link"
+
+    # Validator 노드 Root 디스크 사용률 과다 (/) > 90%
+    - alert: OnpremValidatorRootFsHighUsage
+      expr: |
+        sum by (job)(
+          system_filesystem_usage_bytes{
+            job=~"val[1-4]",
+            mountpoint="/",
+            state="used"
+          }
+        )
+        /
+        sum by (job)(
+          system_filesystem_usage_bytes{
+            job=~"val[1-4]",
+            mountpoint="/"
+          }
+        )
+        * 100 > 90
+      for: 10m
+      labels:
+        severity: warning
+        scope: onprem-validator
+        alert_team: infra
+        infra: onprem
+      annotations:
+        summary: "🟡 Validator 노드 Root(/) 디스크 사용률 90% 초과"
+        description: >
+          {{`{{`}} $labels.job {{`}}`}} Root(/) 사용률={{`{{`}} printf "%.1f" $value {{`}}`}}%로, 블록체인 데이터·로그·스냅샷 파일 등이 Root 파티션을 거의 가득 채운 상태입니다. pruning/압축/아카이브 전략이 적절하지 않으면 조만간 노드 다운으로 이어질 수 있습니다.
+          'System Health - Validator Nodes'의 Disk Root(/) Usage 및 Disk I/O 패널, 그리고 실제 데이터 디렉터리 크기를 확인해 어느 부분부터 정리해야 할지 결정합니다.
+        grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system&infra=onprem"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-RPC-DB-Validator-2bf16f0f36708092b91fc99beec29f94?source=copy_link"
 
   # --------------------------
   # Z. 테스트 알람 (임시)
@@ -582,7 +765,10 @@ spec:
         alert_team: app          # → #ipiece-app-alarm
       annotations:
         summary: "🧪 TEST app alert"
-        description: "ipiece-app-alarm 채널 테스트용 알람입니다."
+        description: >
+          ipiece-app-alarm 채널 테스트용 알람입니다. Alertmanager → Slack → Admin 모니터링(클라우드 시스템/서비스/온프레미스)으로 이어지는 기본 경로가 정상 동작하는지 점검할 때 사용합니다.
+        grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/RUN-BOOK-2bf16f0f367080ab8451fa7c66445bba?source=copy_link"
 
     - alert: IpieceTestEksInfraAlertV2
       expr: vector(1)
@@ -593,7 +779,10 @@ spec:
         infra: eks               # → #ipiece-eks-infra-alarm
       annotations:
         summary: "🧪 TEST EKS infra alert"
-        description: "ipiece-eks-infra-alarm 채널 테스트용 알람입니다."
+        description: >
+          ipiece-eks-infra-alarm 채널 테스트용 알람입니다. EKS/Kubernetes 인프라 관련 라우팅·템플릿·레이블 설정이 의도대로 동작하는지 검증할 때 사용합니다.
+        grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system&infra=cloud-system"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/RUN-BOOK-2bf16f0f367080ab8451fa7c66445bba?source=copy_link"
 
     - alert: IpieceTestOnpremInfraAlertV2
       expr: vector(1)
@@ -604,4 +793,7 @@ spec:
         infra: onprem            # → #ipiece-onprem-infra-alarm
       annotations:
         summary: "🧪 TEST onprem infra alert"
-        description: "ipiece-onprem-infra-alarm 채널 테스트용 알람입니다."
+        description: >
+          ipiece-onprem-infra-alarm 채널 테스트용 알람입니다. 온프레 RPC/DB/Validator 관련 Alertmanager 라우팅과 Slack 알림 구성이 올바른지 확인하는 데 사용합니다.
+        grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system&infra=onprem"
+        runbook_url: "https://ninth-sleep-ef8.notion.site/RUN-BOOK-2bf16f0f367080ab8451fa7c66445bba?source=copy_link"

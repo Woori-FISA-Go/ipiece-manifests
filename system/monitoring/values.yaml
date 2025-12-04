@@ -91,6 +91,7 @@ kube-prometheus-stack:
         effect: "NoSchedule"
 
 
+
   # ===== Alertmanager + Slack =====
   alertmanager:
     enabled: true
@@ -139,29 +140,122 @@ kube-prometheus-stack:
           slack_configs:
             - send_resolved: true
               api_url_file: /etc/alertmanager/secrets/alertmanager-slack-secrets/slack-main-url
-              title: '{{ .CommonAnnotations.summary }}'
-              text: '{{ range .Alerts }}{{ .Annotations.description }}{{ "\n" }}{{ end }}'
+              # 상태/심각도에 따라 색상 자동 설정
+              color: |-
+                {{- if eq .Status "firing" -}}
+                {{- if eq (index .CommonLabels "severity") "critical" }}danger{{ else }}warning{{ end -}}
+                {{- else -}}
+                good
+                {{- end }}
+              title: |-
+                {{ .CommonAnnotations.summary }}
+              text: |-
+                {{- range .Alerts }}
+                *상태*: {{ .Status }} / *심각도*: {{ .Labels.severity }}
+                *알람 이름*: {{ .Labels.alertname }}
+                *요약*: {{ .Annotations.summary }}
+                *설명*: {{ .Annotations.description }}
+
+                {{- if .Annotations.grafana_dashboard_url }}
+                *Grafana*: <{{ .Annotations.grafana_dashboard_url }}|대시보드 열기>
+                {{- end }}
+
+                {{- if .Annotations.runbook_url }}
+                *Runbook*: <{{ .Annotations.runbook_url }}|대응 가이드 열기>
+                {{- end }}
+
+                ---
+                {{- end }}
 
         - name: slack-app
           slack_configs:
             - send_resolved: true
               api_url_file: /etc/alertmanager/secrets/alertmanager-slack-secrets/slack-app-url
-              title: '{{ .CommonAnnotations.summary }}'
-              text: '{{ range .Alerts }}{{ .Annotations.description }}{{ "\n" }}{{ end }}'
+              color: |-
+                {{- if eq .Status "firing" -}}
+                {{- if eq (index .CommonLabels "severity") "critical" }}danger{{ else }}warning{{ end -}}
+                {{- else -}}
+                good
+                {{- end }}
+              title: |-
+                {{ .CommonAnnotations.summary }}
+              text: |-
+                {{- range .Alerts }}
+                *상태*: {{ .Status }} / *심각도*: {{ .Labels.severity }}
+                *알람 이름*: {{ .Labels.alertname }}
+                *요약*: {{ .Annotations.summary }}
+                *설명*: {{ .Annotations.description }}
+
+                {{- if .Annotations.grafana_dashboard_url }}
+                *Grafana*: <{{ .Annotations.grafana_dashboard_url }}|대시보드 열기>
+                {{- end }}
+
+                {{- if .Annotations.runbook_url }}
+                *Runbook*: <{{ .Annotations.runbook_url }}|대응 가이드 열기>
+                {{- end }}
+
+                ---
+                {{- end }}
 
         - name: slack-eks-infra
           slack_configs:
             - send_resolved: true
               api_url_file: /etc/alertmanager/secrets/alertmanager-slack-secrets/slack-eks-url
-              title: '{{ .CommonAnnotations.summary }}'
-              text: '{{ range .Alerts }}{{ .Annotations.description }}{{ "\n" }}{{ end }}'
+              color: |-
+                {{- if eq .Status "firing" -}}
+                {{- if eq (index .CommonLabels "severity") "critical" }}danger{{ else }}warning{{ end -}}
+                {{- else -}}
+                good
+                {{- end }}
+              title: |-
+                {{ .CommonAnnotations.summary }}
+              text: |-
+                {{- range .Alerts }}
+                *상태*: {{ .Status }} / *심각도*: {{ .Labels.severity }}
+                *알람 이름*: {{ .Labels.alertname }}
+                *요약*: {{ .Annotations.summary }}
+                *설명*: {{ .Annotations.description }}
+
+                {{- if .Annotations.grafana_dashboard_url }}
+                *Grafana*: <{{ .Annotations.grafana_dashboard_url }}|대시보드 열기>
+                {{- end }}
+
+                {{- if .Annotations.runbook_url }}
+                *Runbook*: <{{ .Annotations.runbook_url }}|대응 가이드 열기>
+                {{- end }}
+
+                ---
+                {{- end }}
 
         - name: slack-onprem-infra
           slack_configs:
             - send_resolved: true
               api_url_file: /etc/alertmanager/secrets/alertmanager-slack-secrets/slack-onprem-url
-              title: '{{ .CommonAnnotations.summary }}'
-              text: '{{ range .Alerts }}{{ .Annotations.description }}{{ "\n" }}{{ end }}'
+              color: |-
+                {{- if eq .Status "firing" -}}
+                {{- if eq (index .CommonLabels "severity") "critical" }}danger{{ else }}warning{{ end -}}
+                {{- else -}}
+                good
+                {{- end }}
+              title: |-
+                {{ .CommonAnnotations.summary }}
+              text: |-
+                {{- range .Alerts }}
+                *상태*: {{ .Status }} / *심각도*: {{ .Labels.severity }}
+                *알람 이름*: {{ .Labels.alertname }}
+                *요약*: {{ .Annotations.summary }}
+                *설명*: {{ .Annotations.description }}
+
+                {{- if .Annotations.grafana_dashboard_url }}
+                *Grafana*: <{{ .Annotations.grafana_dashboard_url }}|대시보드 열기>
+                {{- end }}
+
+                {{- if .Annotations.runbook_url }}
+                *Runbook*: <{{ .Annotations.runbook_url }}|대응 가이드 열기>
+                {{- end }}
+
+                ---
+                {{- end }}
 
 
 # ==========================================
