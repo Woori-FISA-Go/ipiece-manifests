@@ -12,7 +12,7 @@ spec:
     name: ipiece-server
 
   # 🔹 워커 노드 4대 기준
-  minReplicas: 6          # 기본 4개 유지 (각 노드 1개 이상)
+  minReplicas: 2         # 기본 4개 유지 (각 노드 1개 이상)
   maxReplicas: 20         # 피크 시 여유
 
   # 🔹 CPU 사용률 기준 오토스케일링
@@ -22,7 +22,7 @@ spec:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 65   # 50 → 65 (조금 덜 예민하게)
+          averageUtilization: 35   # 35 (조금 덜 예민하게)
 
   # 🔹 과민반응/바운싱 방지용 Behavior 설정
   behavior:
