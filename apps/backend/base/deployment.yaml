@@ -6,6 +6,14 @@ metadata:
     app: ipiece-server
 spec:
   replicas: 6
+
+  # ✅ [추가 1] 배포 전략: 구버전을 죽이기 전에 신버전을 먼저 띄움
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0  # 배포 중에도 기존 파드 개수 유지 (절대 안 줄어듦)
+      maxSurge: 2        # 새 파드를 2개씩 먼저 생성 (빠른 교체)
+
   selector:
     matchLabels:
       app: ipiece-server
@@ -63,39 +71,36 @@ spec:
             - "-jar"
             - "/app/app.jar"
 
+          # ✅ [추가 2] Lifecycle Hook (종료 지연)
+          # AWS ALB가 타겟 그룹에서 IP를 제거하는 동안(약 10초 소요),
+          # 파드가 바로 죽지 않고 트래픽 처리를 마무리하도록 15초 대기
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 15"]
+
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: "prod"
-
             - name: SERVER_SERVLET_CONTEXT_PATH
               value: "/api"
-
-            # ================================
-            #   OTEL Exporter (Gateway Only)
-            # ================================
+            # ... (OTEL 관련 환경변수 그대로 유지) ...
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: "http://ipiece-monitoring-otel-collector-gateway.monitoring.svc.cluster.local:4317"
-
             - name: OTEL_EXPORTER_OTLP_PROTOCOL
               value: "grpc"
-
             - name: OTEL_SERVICE_NAME
               value: "ipiece-server"
-
             - name: OTEL_TRACES_EXPORTER
               value: "otlp"
-
             - name: OTEL_METRICS_EXPORTER
               value: "otlp"
-
             - name: OTEL_LOGS_EXPORTER
               value: "otlp"
-
             - name: KUBERNETES_NODE_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: "service.name=ipiece-server,service.namespace=backend,deployment.environment=prod,k8s.node.name=$(KUBERNETES_NODE_NAME)"
 
@@ -115,32 +120,32 @@ spec:
               memory: "1Gi"
               cpu: "500m"
 
-          # 🟢 부팅 + 부하시 너무 예민하게 죽지 않도록 완화된 프로브 설정
+          # 🟢 부팅 + 부하시 너무 예민하게 죽지 않도록 완화된 프로브 설정 (기존 설정 유지)
           startupProbe:
             httpGet:
               path: /api/healthz
               port: 8080
             periodSeconds: 5
-            timeoutSeconds: 3      # 1초 → 3초 (부하 시 여유)
-            failureThreshold: 60   # 30 → 60 (최대 5분까지 부팅 기다려줌)
+            timeoutSeconds: 3
+            failureThreshold: 60
 
           livenessProbe:
             httpGet:
               path: /api/healthz
               port: 8080
-            initialDelaySeconds: 120  # 60 → 120 (충분히 자리 잡고부터 체크)
-            periodSeconds: 20         # 10 → 20
-            timeoutSeconds: 3         # 1초 → 3초
-            failureThreshold: 5       # 3 → 5 (몇 번 연속 실패해야 진짜 죽임)
+            initialDelaySeconds: 120
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 5
 
           readinessProbe:
             httpGet:
               path: /api/healthz
               port: 8080
-            initialDelaySeconds: 60   # 40 → 60
+            initialDelaySeconds: 60
             periodSeconds: 5
-            timeoutSeconds: 3         # 1초 → 3초
-            failureThreshold: 5       # 3 → 5 (잠깐 느려져도 바로 0/1 안 되게)
+            timeoutSeconds: 3
+            failureThreshold: 5
 
       volumes:
         - name: otel-agent

@@ -6,6 +6,14 @@ metadata:
     app: ipiece-frontend
 spec:
   replicas: 3
+
+  # ✅ [추가 1] 배포 전략: 새 파드가 준비되기 전에는 기존 파드를 절대 죽이지 않음
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0   # 배포 중에도 서비스 가능한 파드 수 유지
+      maxSurge: 1         # 새 파드를 하나 먼저 생성해서 띄움
+
   selector:
     matchLabels:
       app: ipiece-frontend
@@ -33,16 +41,17 @@ spec:
             matchLabels:
               app: ipiece-frontend
       # 🔼
+
       containers:
         - name: ipiece-frontend
-          # 🔥 [수정됨] Kustomize가 이 이름을 찾아서 ECR 주소로 바꿉니다.
-          # 절대 여기에 긴 ECR 주소를 직접 적지 마세요!
           image: ipiece-frontend
           ports:
             - containerPort: 3000
           env:
             - name: NODE_ENV
               value: "production"
+          
+          # 🔽 리소스 설정 (아까 합의한 값 적용)
           resources:
             requests:
               cpu: "100m"
@@ -50,3 +59,31 @@ spec:
             limits:
               cpu: "500m"
               memory: "768Mi"
+
+          # ✅ [추가 2] Readiness Probe (준비 확인)
+          # 파드가 떴어도 이 체크가 통과하기 전까진 트래픽을 보내지 않음 (502 방지)
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 15  # Node.js 구동 대기
+            periodSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+
+          # ✅ [추가 3] Liveness Probe (생존 확인)
+          # 파드가 먹통되면 재시작시킴
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
+
+          # ✅ [추가 4] Lifecycle Hook (종료 지연)
+          # AWS ALB가 타겟 그룹에서 IP를 뺄 때까지 파드가 10초간 버티다가 죽음 (502/504 방지)
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 10"]
