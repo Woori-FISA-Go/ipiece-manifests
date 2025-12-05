@@ -5,7 +5,7 @@ metadata:
   labels:
     app: ipiece-server
 spec:
-  replicas: 6
+  replicas: 2
 
   # ✅ [추가 1] 배포 전략: 구버전을 죽이기 전에 신버전을 먼저 띄움
   strategy:

@@ -11,8 +11,8 @@ spec:
     kind: Deployment
     name: ipiece-frontend
 
-  # 🔹 기본 3개, 최대 10개
-  minReplicas: 3
+  # 🔹 기본 2, 최대 10개
+  minReplicas: 2
   maxReplicas: 10
 
   # 🔹 CPU 기준

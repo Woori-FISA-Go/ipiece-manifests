@@ -5,7 +5,7 @@ metadata:
   labels:
     app: ipiece-frontend
 spec:
-  replicas: 3
+  replicas: 2
 
   # ✅ [추가 1] 배포 전략: 새 파드가 준비되기 전에는 기존 파드를 절대 죽이지 않음
   strategy:
