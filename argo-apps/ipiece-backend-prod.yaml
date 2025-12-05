@@ -28,3 +28,9 @@ spec:
       name: ipiece-server
       jsonPointers:
         - /spec/replicas
+
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+      name: ipiece-server
+      jsonPointers:
+        - /spec/minReplicas

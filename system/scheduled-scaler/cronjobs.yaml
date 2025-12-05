@@ -1,0 +1,53 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: scale-up-morning
+  namespace: default
+spec:
+  timeZone: "Asia/Seoul"     # 한국 시간 기준 (중요!)
+  schedule: "50 8 * * *"     # 매일 아침 08:50 실행
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: hpa-patcher
+          containers:
+          - name: kubectl
+            image: bitnami/kubectl:latest
+            command:
+            - /bin/sh
+            - -c
+            - |
+              echo "📈 [오전 08:50] 장 시작 대비: 최소 파드(minReplicas)를 20개로 확장합니다."
+              # ipiece-server HPA의 minReplicas를 20으로 강제 변경
+              kubectl patch hpa ipiece-server --patch '{"spec":{"minReplicas":20}}'
+          restartPolicy: OnFailure
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: scale-down-normal
+  namespace: default
+spec:
+  timeZone: "Asia/Seoul"
+  schedule: "30 9 * * *"     # 매일 아침 09:30 실행
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: hpa-patcher
+          containers:
+          - name: kubectl
+            image: bitnami/kubectl:latest
+            command:
+            - /bin/sh
+            - -c
+            - |
+              echo "📉 [오전 09:30] 트래픽 안정화: 최소 파드(minReplicas)를 6개로 복구합니다."
+              # HPA 설정을 원래대로 6개로 복구 (이후엔 CPU 사용량에 따라 자동 조절됨)
+              kubectl patch hpa ipiece-server --patch '{"spec":{"minReplicas":6}}'
+          restartPolicy: OnFailure
