@@ -22,7 +22,7 @@ spec:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 35   # 35 (조금 덜 예민하게)
+          averageUtilization: 40   # 40 (조금 덜 예민하게)
 
   # 🔹 과민반응/바운싱 방지용 Behavior 설정
   behavior:

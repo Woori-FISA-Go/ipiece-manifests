@@ -751,49 +751,49 @@ spec:
         grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system&infra=onprem"
         runbook_url: "https://ninth-sleep-ef8.notion.site/ipiece-RPC-DB-Validator-2bf16f0f36708092b91fc99beec29f94?source=copy_link"
 
-  # --------------------------
-  # Z. 테스트 알람 (임시)
-  # --------------------------
-  - name: ipiece-test
-    interval: 30s
-    rules:
-    - alert: IpieceTestAppAlertV2
-      expr: vector(1)
-      for: 1m
-      labels:
-        severity: warning
-        alert_team: app          # → #ipiece-app-alarm
-      annotations:
-        summary: "🧪 TEST app alert"
-        description: >
-          ipiece-app-alarm 채널 테스트용 알람입니다. Alertmanager → Slack → Admin 모니터링(클라우드 시스템/서비스/온프레미스)으로 이어지는 기본 경로가 정상 동작하는지 점검할 때 사용합니다.
-        grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system"
-        runbook_url: "https://ninth-sleep-ef8.notion.site/RUN-BOOK-2bf16f0f367080ab8451fa7c66445bba?source=copy_link"
+  # # --------------------------
+  # # Z. 테스트 알람 (임시)
+  # # --------------------------
+  # - name: ipiece-test
+  #   interval: 30s
+  #   rules:
+  #   - alert: IpieceTestAppAlertV2
+  #     expr: vector(1)
+  #     for: 1m
+  #     labels:
+  #       severity: warning
+  #       alert_team: app          # → #ipiece-app-alarm
+  #     annotations:
+  #       summary: "🧪 TEST app alert"
+  #       description: >
+  #         ipiece-app-alarm 채널 테스트용 알람입니다. Alertmanager → Slack → Admin 모니터링(클라우드 시스템/서비스/온프레미스)으로 이어지는 기본 경로가 정상 동작하는지 점검할 때 사용합니다.
+  #       grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system"
+  #       runbook_url: "https://ninth-sleep-ef8.notion.site/RUN-BOOK-2bf16f0f367080ab8451fa7c66445bba?source=copy_link"
 
-    - alert: IpieceTestEksInfraAlertV2
-      expr: vector(1)
-      for: 1m
-      labels:
-        severity: warning
-        alert_team: infra        # infra + eks
-        infra: eks               # → #ipiece-eks-infra-alarm
-      annotations:
-        summary: "🧪 TEST EKS infra alert"
-        description: >
-          ipiece-eks-infra-alarm 채널 테스트용 알람입니다. EKS/Kubernetes 인프라 관련 라우팅·템플릿·레이블 설정이 의도대로 동작하는지 검증할 때 사용합니다.
-        grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system&infra=cloud-system"
-        runbook_url: "https://ninth-sleep-ef8.notion.site/RUN-BOOK-2bf16f0f367080ab8451fa7c66445bba?source=copy_link"
+  #   - alert: IpieceTestEksInfraAlertV2
+  #     expr: vector(1)
+  #     for: 1m
+  #     labels:
+  #       severity: warning
+  #       alert_team: infra        # infra + eks
+  #       infra: eks               # → #ipiece-eks-infra-alarm
+  #     annotations:
+  #       summary: "🧪 TEST EKS infra alert"
+  #       description: >
+  #         ipiece-eks-infra-alarm 채널 테스트용 알람입니다. EKS/Kubernetes 인프라 관련 라우팅·템플릿·레이블 설정이 의도대로 동작하는지 검증할 때 사용합니다.
+  #       grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system&infra=cloud-system"
+  #       runbook_url: "https://ninth-sleep-ef8.notion.site/RUN-BOOK-2bf16f0f367080ab8451fa7c66445bba?source=copy_link"
 
-    - alert: IpieceTestOnpremInfraAlertV2
-      expr: vector(1)
-      for: 1m
-      labels:
-        severity: warning
-        alert_team: infra
-        infra: onprem            # → #ipiece-onprem-infra-alarm
-      annotations:
-        summary: "🧪 TEST onprem infra alert"
-        description: >
-          ipiece-onprem-infra-alarm 채널 테스트용 알람입니다. 온프레 RPC/DB/Validator 관련 Alertmanager 라우팅과 Slack 알림 구성이 올바른지 확인하는 데 사용합니다.
-        grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system&infra=onprem"
-        runbook_url: "https://ninth-sleep-ef8.notion.site/RUN-BOOK-2bf16f0f367080ab8451fa7c66445bba?source=copy_link"
+  #   - alert: IpieceTestOnpremInfraAlertV2
+  #     expr: vector(1)
+  #     for: 1m
+  #     labels:
+  #       severity: warning
+  #       alert_team: infra
+  #       infra: onprem            # → #ipiece-onprem-infra-alarm
+  #     annotations:
+  #       summary: "🧪 TEST onprem infra alert"
+  #       description: >
+  #         ipiece-onprem-infra-alarm 채널 테스트용 알람입니다. 온프레 RPC/DB/Validator 관련 Alertmanager 라우팅과 Slack 알림 구성이 올바른지 확인하는 데 사용합니다.
+  #       grafana_dashboard_url: "https://ipiece.store/admin/monitoring?tab=system&infra=onprem"
+  #       runbook_url: "https://ninth-sleep-ef8.notion.site/RUN-BOOK-2bf16f0f367080ab8451fa7c66445bba?source=copy_link"
